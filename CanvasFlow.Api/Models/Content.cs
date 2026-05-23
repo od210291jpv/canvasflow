@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace CanvasFlow.Api.Models
 {
     public class Content
