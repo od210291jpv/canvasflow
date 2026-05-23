@@ -1,15 +1,21 @@
-using Microsoft.EntityFrameworkCore;
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
 // 1. Configure the Database Context (MS SQL)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.")));
+    options.UseMySql(
+        connectionString,
+        ServerVersion.AutoDetect(connectionString) // Pomelo автоматично визначить версію вашої MariaDB/MySQL
+    ));
 
 // 2. Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "ThisIsASuperSecretKeyForTesting123!";
@@ -34,6 +40,7 @@ builder.Services.AddAuthorization();
 
 // 3. Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IContentService, ContentService>(); // <-- NEW REGISTRATION
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -49,7 +56,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// 4. Use Authentication and Authorization Middleware
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
