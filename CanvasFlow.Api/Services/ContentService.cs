@@ -1,6 +1,7 @@
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CanvasFlow.Api.Services
 {
@@ -24,16 +25,16 @@ namespace CanvasFlow.Api.Services
 
         public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize)
         {
-            // �������� ��������
+            //  
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100; // ������ �� ������� ������� ������
+            if (pageSize > 100) pageSize = 100; //     
 
             return await _context.Contents
-                .Include(c => c.User) // ����������� ������
-                .Include(c => c.Tags) // ����������� ����
-                .Where(c => !c.IsDeleted && c.IsPublished) // ҳ���� ������������ � �� ��������� �������
-                                                           // .OrderByDescending(c => c.CreatedAt) // �������������, ���� � ���� CreatedAt
+                .Include(c => c.User) //  
+                .Include(c => c.Tags) //  
+                .Where(c => !c.IsDeleted && c.IsPublished) // ҳ     
+                                                           // .OrderByDescending(c => c.CreatedAt) // ,    CreatedAt
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -46,13 +47,13 @@ namespace CanvasFlow.Api.Services
                 UserId = userId,
                 Title = title,
                 Description = description,
-                // ImageUrl = imageUrl, // �������������, ���� ������� ���� � ������ Content
-                IsPublished = true, // �������� �� ���� �����-�����
+                // ImageUrl = imageUrl, // ,      Content
+                IsPublished = true, //    -
                                     // CreatedAt = DateTime.UtcNow,
                 Tags = new List<Tag>()
             };
 
-            // ��������� ��������� ���� (�� �� ������ � EditContentAsAdmin)
+            //    (    EditContentAsAdmin)
             if (tags != null && tags.Any())
             {
                 var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
@@ -99,14 +100,14 @@ namespace CanvasFlow.Api.Services
                 throw new KeyNotFoundException("Content not found.");
             }
 
-            // TODO: � ����� ���� ����� ���������� userId � ���������:
+            // TODO:      userId  :
             // if (content.UserId != userId) throw new UnauthorizedAccessException();
 
             content.Title = title;
             content.Description = description;
-            // content.ImageUrl = imageUrl; // ������������� ���� ��������� �����
+            // content.ImageUrl = imageUrl; //    
 
-            // ��������� ����
+            //  
             content.Tags.Clear();
 
             if (tags != null && tags.Any())
@@ -136,7 +137,7 @@ namespace CanvasFlow.Api.Services
             }
 
             content.IsPublished = isPublished;
-            // �������� _context.Contents.Update(content); ������� EF ��� ������� ����
+            //  _context.Contents.Update(content);  EF   
 
             await _context.SaveChangesAsync();
 
@@ -153,7 +154,7 @@ namespace CanvasFlow.Api.Services
 
         public async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
         {
-            // ����������: ������ .Include(c => c.Tags), ��� �������� NullReferenceException
+            // :  .Include(c => c.Tags),   NullReferenceException
             var content = await _context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
@@ -166,15 +167,15 @@ namespace CanvasFlow.Api.Services
             content.Title = newTitle;
             content.Description = newDescription;
 
-            // ����� �� ��������, �� Tags �����������
+            //   ,  Tags 
             content.Tags.Clear();
 
             if (newTags != null && newTags.Any())
             {
-                // ��������� �� ������ ���� �� �������� ������� ������
+                //        
                 var newTagsLower = newTags.Select(t => t.ToLowerInvariant()).ToList();
 
-                // ����������: �������� �� ������� ���� � ���� ����� ������� ������ ������ � ����
+                // :            
                 var existingTags = await _context.Tags
                     .Where(t => newTagsLower.Contains(t.Name))
                     .ToListAsync();
@@ -186,14 +187,14 @@ namespace CanvasFlow.Api.Services
                     if (tagToAssign == null)
                     {
                         tagToAssign = new Tag { Name = tagName };
-                        // �������� SaveChangesAsync � �����. EF ������� ����� ��� ����������� �� ��� ���������� ����������
+                        //  SaveChangesAsync  . EF        
                     }
 
                     content.Tags.Add(tagToAssign);
                 }
             }
 
-            // �������� ������ _context.Contents.Update(content);
+            //   _context.Contents.Update(content);
             await _context.SaveChangesAsync();
 
             await _auditService.LogActionAsync(

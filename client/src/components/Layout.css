@@ -1,0 +1,48 @@
+/* client/src/components/Layout.css */
+
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    margin-bottom: 20px;
+    /* Ensure the header itself has the glass effect */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--color-primary);
+}
+
+.main-header nav button {
+    margin-left: 10px;
+    /* Override default button styling for theme toggles */
+    background-color: var(--color-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+}
+
+.main-header nav button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Mobile adjustments for header */
+@media (max-width: 600px) {
+    .main-header {
+        flex-direction: column;
+        padding: 15px;
+        gap: 10px;
+    }
+    .main-header nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .main-header nav button {
+        margin: 5px 5px 5px 0;
+    }
+}

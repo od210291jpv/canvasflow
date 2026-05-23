@@ -1,9 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
 using CanvasFlow.Api.Services;
-using CanvasFlow.Api.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
