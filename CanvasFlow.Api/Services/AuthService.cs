@@ -75,15 +75,18 @@ namespace CanvasFlow.Api.Services
                 throw new KeyNotFoundException("User not found.");
             }
 
-            if (user.Role != "Admin")
+            // Check if the performing user is an admin
+            var adminUser = await _context.Users.FindAsync(adminUserId);
+            if (adminUser == null || adminUser.Role != "Admin")
             {
                 throw new UnauthorizedAccessException("Only Admins can change user status.");
             }
 
-            // Logic to prevent status downgrade (e.g., cannot go from Blocked to Pending)
-            if (user.AccountStatus == UserStatus.Blocked && newStatus != UserStatus.Blocked)
+            // Logic to prevent status downgrade (e.g., cannot go from Active to Pending)
+            // But ALLOW unblocking (Blocked to Active)
+            if (user.AccountStatus == UserStatus.Active && newStatus == UserStatus.Pending)
             {
-                throw new InvalidOperationException("Cannot reactivate a user without manual review.");
+                throw new InvalidOperationException("Cannot revert an active user to pending.");
             }
 
             user.AccountStatus = newStatus;

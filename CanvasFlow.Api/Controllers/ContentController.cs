@@ -41,11 +41,7 @@ namespace CanvasFlow.Api.Controllers
         [HttpGet("get/{contentId}")]
         public async Task<IActionResult> GetContentById(int contentId)
         {
-            // In a real scenario, we would fetch the content and check ownership/visibility.
-            // For now, we just return the content if it exists.
-            // Since the service doesn't have a GetById, we'll fetch the feed and find the item.
-            var feed = await _contentService.GetFeedAsync(1, 100); // Fetch a large set to ensure the item is found
-            var content = feed.FirstOrDefault(c => c.Id == contentId);
+            var content = await _contentService.GetContentByIdAsync(contentId);
 
             if (content == null)
             {
@@ -126,7 +122,7 @@ namespace CanvasFlow.Api.Controllers
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
             
-            var success = await _contentService.DeleteContentAsync(contentId, userId);
+            var success = await _contentService.DeleteContentAsync(userId, contentId);
             
             if (success)
             {
