@@ -7,89 +7,83 @@ namespace CanvasFlow.Api.Services
     public class ContentService : IContentService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuditService _auditService;
 
-        public ContentService(ApplicationDbContext context)
+        public ContentService(ApplicationDbContext context, IAuditService auditService)
         {
             _context = context;
+            _auditService = auditService;
         }
 
-        public async Task<IEnumerable<Content>> GetFeedAsync(int page, int limit, List<string>? tags = null)
+        public async Task<Content> GetContentByIdAsync(int contentId)
         {
-            IQueryable<Content> query = _context.Contents
-                .Include(c => c.User)
+            return await _context.Contents
                 .Include(c => c.Tags)
-                .Where(c => !c.IsDeleted);
+                .FirstOrDefaultAsync(c => c.Id == contentId);
+        }
 
-            if (tags != null && tags.Any())
-            {
-                // Filter by tags
-                query = query.Where(c => c.Tags.Any(t => tags.Contains(t.Name)));
-            }
+        public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize)
+        {
+            // Валідація пагінації
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100; // Захист від занадто великих запитів
 
-            // Р”РѕРґР°С”РјРѕ СЃРѕСЂС‚СѓРІР°РЅРЅСЏ РІ СЃР°РјРѕРјСѓ РєС–РЅС†С–
-            var items = await query
-                .OrderByDescending(c => c.UploadDate)
-                .Skip((page - 1) * limit)
-                .Take(limit)
+            return await _context.Contents
+                .Include(c => c.User) // Завантажуємо автора
+                .Include(c => c.Tags) // Завантажуємо теги
+                .Where(c => !c.IsDeleted && c.IsPublished) // Тільки опублікований і не видалений контент
+                                                           // .OrderByDescending(c => c.CreatedAt) // Розкоментуйте, якщо є поле CreatedAt
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
-
-            return items;
         }
 
         public async Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags)
         {
-            var tagNames = tags.Select(t => t.ToLower()).Distinct().ToList();
-
-            var existingTags = await _context.Tags.Where(t => tagNames.Contains(t.Name)).ToListAsync();
-
-            // 2. Create new tags if they don't exist (ensuring lowercase)
-            var tagsToCreate = new List<Tag>();
-            foreach (var tagName in tagNames)
-            {
-                var existingTag = existingTags.FirstOrDefault(t => t.Name == tagName);
-                if (existingTag == null)
-                {
-                    tagsToCreate.Add(new Tag { Name = tagName });
-                }
-            }
-
-            // Bulk add new tags
-            if (tagsToCreate.Any())
-            {
-                _context.Tags.AddRange(tagsToCreate);
-                await _context.SaveChangesAsync();
-            }
-
-            // Re-fetch all tags to include newly created ones
-            var allTags = await _context.Tags.Where(t => tagNames.Contains(t.Name)).ToListAsync();
-
-            // 3. Create Content
-            var newContent = new Content
+            var content = new Content
             {
                 UserId = userId,
                 Title = title,
                 Description = description,
-                ImageUrl = imageUrl,
-                Tags = allTags, // Assign all relevant tags
-                IsPublished = true,
-                UploadDate = DateTime.UtcNow // Р‘Р°Р¶Р°РЅРѕ РґРѕРґР°РІР°С‚Рё РґР°С‚Сѓ
+                // ImageUrl = imageUrl, // Розкоментуйте, коли додасте поле в модель Content
+                IsPublished = true, // Залежить від вашої бізнес-логіки
+                                    // CreatedAt = DateTime.UtcNow,
+                Tags = new List<Tag>()
             };
 
-            _context.Contents.Add(newContent);
+            // Ефективне додавання тегів (як ми робили в EditContentAsAdmin)
+            if (tags != null && tags.Any())
+            {
+                var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
+                var existingTags = await _context.Tags
+                    .Where(t => newTagsLower.Contains(t.Name))
+                    .ToListAsync();
+
+                foreach (var tagName in newTagsLower)
+                {
+                    var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName) ?? new Tag { Name = tagName };
+                    content.Tags.Add(tagToAssign);
+                }
+            }
+
+            _context.Contents.Add(content);
             await _context.SaveChangesAsync();
 
-            return newContent;
+            return content;
         }
 
         public async Task<bool> LikeContentAsync(int contentId, int userId)
         {
-            var content = await _context.Contents.FindAsync(contentId);
-            if (content == null) return false;
+            var content = await _context.Contents
+                .Include(c => c.LikeCount) 
+                .FirstOrDefaultAsync(c => c.Id == contentId);
 
-            // Р‘РћРќРЈРЎРќР• Р’РРџР РђР’Р›Р•РќРќРЇ: Р’С–РґРїРѕРІС–РґРЅРѕ РґРѕ РІРёРјРѕРі (2.8), РєРѕСЂРёСЃС‚СѓРІР°С‡ РЅРµ РјРѕР¶Рµ Р»Р°Р№РєР°С‚Рё РІР»Р°СЃРЅРёР№ РєРѕРЅС‚РµРЅС‚
-            if (content.UserId == userId) return false;
+            if (content == null)
+            {
+                throw new KeyNotFoundException("Content not found.");
+            }
 
-            // Basic check: Prevent a user from liking the same content multiple times
             content.LikeCount++;
             await _context.SaveChangesAsync();
             return true;
@@ -101,35 +95,140 @@ namespace CanvasFlow.Api.Services
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
 
-            if (content == null) throw new KeyNotFoundException("Content not found.");
+            if (content == null)
+            {
+                throw new KeyNotFoundException("Content not found.");
+            }
 
-            // Update metadata
+            // TODO: В ідеалі сюди треба передавати userId і перевіряти:
+            // if (content.UserId != userId) throw new UnauthorizedAccessException();
+
             content.Title = title;
             content.Description = description;
-            content.ImageUrl = imageUrl;
+            // content.ImageUrl = imageUrl; // Розкоментуйте після оновлення моделі
 
-            var tagNames = tags.Select(t => t.ToLower()).Distinct().ToList();
-            var existingTags = await _context.Tags.Where(t => tagNames.Contains(t.Name)).ToListAsync();
-
+            // Оновлення тегів
             content.Tags.Clear();
-            foreach (var tag in existingTags)
+
+            if (tags != null && tags.Any())
             {
-                content.Tags.Add(tag);
+                var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
+                var existingTags = await _context.Tags
+                    .Where(t => newTagsLower.Contains(t.Name))
+                    .ToListAsync();
+
+                foreach (var tagName in newTagsLower)
+                {
+                    var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName) ?? new Tag { Name = tagName };
+                    content.Tags.Add(tagToAssign);
+                }
             }
 
             await _context.SaveChangesAsync();
+
+            return content;
+        }
+        public async Task<Content> ModerateContentAsync(int adminUserId, int contentId, bool isPublished)
+        {
+            var content = await _context.Contents.FindAsync(contentId);
+            if (content == null)
+            {
+                throw new KeyNotFoundException("Content not found.");
+            }
+
+            content.IsPublished = isPublished;
+            // Видалено _context.Contents.Update(content); оскільки EF сам відстежує стан
+
+            await _context.SaveChangesAsync();
+
+            await _auditService.LogActionAsync(
+                adminUserId,
+                "Content Moderation",
+                "Content",
+                contentId,
+                $"Content visibility set to {isPublished} by Admin."
+            );
+
             return content;
         }
 
-        public async Task<bool> DeleteContentAsync(int contentId, int userId)
+        public async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
+        {
+            // Виправлено: додано .Include(c => c.Tags), щоб уникнути NullReferenceException
+            var content = await _context.Contents
+                .Include(c => c.Tags)
+                .FirstOrDefaultAsync(c => c.Id == contentId);
+
+            if (content == null)
+            {
+                throw new KeyNotFoundException("Content not found.");
+            }
+
+            content.Title = newTitle;
+            content.Description = newDescription;
+
+            // Тепер це безпечно, бо Tags завантажено
+            content.Tags.Clear();
+
+            if (newTags != null && newTags.Any())
+            {
+                // Приводимо всі вхідні теги до нижнього регістру відразу
+                var newTagsLower = newTags.Select(t => t.ToLowerInvariant()).ToList();
+
+                // Виправлено: отримуємо всі існуючі теги з бази ОДНИМ запитом замість запиту в циклі
+                var existingTags = await _context.Tags
+                    .Where(t => newTagsLower.Contains(t.Name))
+                    .ToListAsync();
+
+                foreach (var tagName in newTagsLower)
+                {
+                    var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName);
+
+                    if (tagToAssign == null)
+                    {
+                        tagToAssign = new Tag { Name = tagName };
+                        // Видалено SaveChangesAsync з циклу. EF збереже новий тег автоматично під час фінального збереження
+                    }
+
+                    content.Tags.Add(tagToAssign);
+                }
+            }
+
+            // Видалено зайвий _context.Contents.Update(content);
+            await _context.SaveChangesAsync();
+
+            await _auditService.LogActionAsync(
+                adminUserId,
+                "Content Edited by Admin",
+                "Content",
+                contentId,
+                $"Title updated to '{newTitle}'. Tags updated."
+            );
+
+            return content;
+        }
+
+        public async Task<bool> DeleteContentAsync(int adminUserId, int contentId)
         {
             var content = await _context.Contents.FindAsync(contentId);
-            if (content == null || content.UserId != userId) return false;
+            if (content == null)
+            {
+                throw new KeyNotFoundException("Content not found.");
+            }
 
-            // Soft delete
             content.IsDeleted = true;
-            await _context.SaveChangesAsync();
-            return true;
+
+            int result = await _context.SaveChangesAsync();
+
+            await _auditService.LogActionAsync(
+                adminUserId,
+                "Content Deletion",
+                "Content",
+                contentId,
+                "Content was soft-deleted by Admin."
+            );
+
+            return result > 0;
         }
     }
 }

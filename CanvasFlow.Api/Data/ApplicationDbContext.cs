@@ -18,6 +18,8 @@ namespace CanvasFlow.Api.Data
 
         public DbSet<Tag> Tags { get; set; }
 
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -38,7 +40,7 @@ namespace CanvasFlow.Api.Data
                 .UsingEntity("ContentTags");
 
             modelBuilder.Entity<Message>()
-                .HasOne<User>() // явно вказуЇмо тип User зам≥сть m => m.Sender
+                .HasOne<User>()
                 .WithMany()
                 .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -51,6 +53,10 @@ namespace CanvasFlow.Api.Data
 
             modelBuilder.Entity<Message>()
                 .HasIndex(m => new { m.SenderId, m.RecipientId });
+            
+            // Optional: Indexing for faster audit log lookups
+            modelBuilder.Entity<AuditLog>()
+                .HasIndex(l => l.AdminUserId);
         }
     }
 }

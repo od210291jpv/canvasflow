@@ -33,7 +33,7 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            var feed = await _contentService.GetFeedAsync(page, limit, tagList);
+            var feed = await _contentService.GetFeedAsync(page, limit);
             return Ok(feed);
         }
 

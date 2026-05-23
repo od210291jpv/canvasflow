@@ -46,6 +46,9 @@ builder.Services.AddScoped<IContentService, ContentService>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // -----------------------------
+// --- MODULE 4 REGISTRATIONS ---
+builder.Services.AddScoped<IAuditService, AuditService>();
+// -----------------------------
 
 // Add services to the container.
 builder.Services.AddControllers();

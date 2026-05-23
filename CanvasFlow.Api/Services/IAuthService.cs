@@ -1,3 +1,4 @@
+// Services/IAuthService.cs
 using CanvasFlow.Api.Models;
 
 namespace CanvasFlow.Api.Services
@@ -5,13 +6,32 @@ namespace CanvasFlow.Api.Services
     public interface IAuthService
     {
         /// <summary>
-        /// Registers a new user and returns the created user object.
-        /// </summary>
-        Task<User> RegisterUserAsync(string username, string email, string password);
-
-        /// <summary>
         /// Authenticates a user and returns a JWT token.
         /// </summary>
-        Task<(string Token, User User)> LoginAsync(string username, string password);
+        Task<string> Login(string username, string password);
+
+        /// <summary>
+        /// Registers a new user account.
+        /// </summary>
+        Task<User> RegisterUser(string username, string email, string password);
+
+        /// <summary>
+        /// Admin action: Changes the status of a user account (e.g., Block, Activate).
+        /// </summary>
+        /// <param name="adminUserId">The ID of the admin performing the action.</param>
+        /// <param name="targetUserId">The ID of the user being moderated.</param>
+        /// <param name="newStatus">The new status (Active, Blocked, Pending).</param>
+        /// <returns>The updated user profile.</returns>
+        Task<User> UpdateUserStatus(int adminUserId, int targetUserId, string newStatus);
+
+        /// <summary>
+        /// Admin action: Blocks a user account.
+        /// </summary>
+        Task<User> BlockUser(int adminUserId, int targetUserId);
+
+        /// <summary>
+        /// Admin action: Sends a custom, system-generated message to a user.
+        /// </summary>
+        Task SendAdminMessage(int adminUserId, int recipientId, string content);
     }
 }

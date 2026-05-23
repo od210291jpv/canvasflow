@@ -20,7 +20,7 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                var user = await _authService.RegisterUserAsync(model.Username, model.Email, model.Password);
+                var user = await _authService.RegisterUser(model.Username, model.Email, model.Password);
                 return Ok(new { message = "User registered successfully. Please check your email to activate.", user = user });
             }
             catch (Exception ex)
@@ -34,8 +34,8 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                var (token, user) = await _authService.LoginAsync(model.Username, model.Password);
-                return Ok(new { token = token, user = user });
+                var token = await _authService.Login(model.Username, model.Password);
+                return Ok(new { token = token });
             }
             catch (Exception ex)
             {
