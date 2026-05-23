@@ -1,4 +1,5 @@
 using CanvasFlow.Api.Data;
+using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
-        ServerVersion.AutoDetect(connectionString) // Pomelo автоматично визначить версію вашої MariaDB/MySQL
+        ServerVersion.AutoDetect(connectionString) // Pomelo пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ MariaDB/MySQL
     ));
 
 // 2. Configure JWT Authentication
@@ -40,12 +41,19 @@ builder.Services.AddAuthorization();
 
 // 3. Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IContentService, ContentService>(); // <-- NEW REGISTRATION
+builder.Services.AddScoped<IContentService, ContentService>();
+// --- MODULE 3 REGISTRATIONS ---
+builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+// -----------------------------
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// 4. Configure SignalR
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -60,4 +68,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 app.MapControllers();
+
+// 5. Map SignalR Hub
+app.MapHub<NotificationHub>("/notificationhub");
+
 app.Run();
