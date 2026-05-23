@@ -1,5 +1,6 @@
 // Services/IAuthService.cs
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 
 namespace CanvasFlow.Api.Services
 {
@@ -22,7 +23,7 @@ namespace CanvasFlow.Api.Services
         /// <param name="targetUserId">The ID of the user being moderated.</param>
         /// <param name="newStatus">The new status (Active, Blocked, Pending).</param>
         /// <returns>The updated user profile.</returns>
-        Task<User> UpdateUserStatus(int adminUserId, int targetUserId, string newStatus);
+        Task<User> UpdateUserStatus(int adminUserId, int targetUserId, UserStatus newStatus);
 
         /// <summary>
         /// Admin action: Blocks a user account.

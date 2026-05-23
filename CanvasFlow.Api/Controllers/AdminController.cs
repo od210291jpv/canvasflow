@@ -1,5 +1,6 @@
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.DTO;
+using CanvasFlow.Api.Models.Enums;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +25,7 @@ namespace CanvasFlow.Api.Controllers
         }
 
         [HttpPost("user/status")]
-        public async Task<IActionResult> UpdateUserStatus([FromQuery] int targetUserId, [FromBody] string newStatus)
+        public async Task<IActionResult> UpdateUserStatus([FromQuery] int targetUserId, [FromBody] UserStatus newStatus)
         {
             var adminUserId = GetCurrentAdminUserId();
             try

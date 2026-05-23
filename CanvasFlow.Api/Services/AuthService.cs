@@ -1,6 +1,7 @@
 // Services/AuthService.cs
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 using CanvasFlow.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -25,7 +26,7 @@ namespace CanvasFlow.Api.Services
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username && !u.IsDeleted);
 
-            if (user == null || user.AccountStatus != "Active")
+            if (user == null || user.AccountStatus != UserStatus.Active)
             {
                 throw new UnauthorizedAccessException("Invalid credentials or account is inactive.");
             }
@@ -54,7 +55,7 @@ namespace CanvasFlow.Api.Services
                 Email = email,
                 PasswordHash = HashPassword(password),
                 Role = "User",
-                AccountStatus = "Pending" // New users start as Pending
+                AccountStatus = UserStatus.Pending // New users start as Pending
             };
 
             _context.Users.Add(newUser);
@@ -66,7 +67,7 @@ namespace CanvasFlow.Api.Services
             return newUser;
         }
 
-        public async Task<User> UpdateUserStatus(int adminUserId, int targetUserId, string newStatus)
+        public async Task<User> UpdateUserStatus(int adminUserId, int targetUserId, UserStatus newStatus)
         {
             var user = await _context.Users.FindAsync(targetUserId);
             if (user == null)
@@ -80,7 +81,7 @@ namespace CanvasFlow.Api.Services
             }
 
             // Logic to prevent status downgrade (e.g., cannot go from Blocked to Pending)
-            if (user.AccountStatus == "Blocked" && newStatus != "Blocked")
+            if (user.AccountStatus == UserStatus.Blocked && newStatus != UserStatus.Blocked)
             {
                 throw new InvalidOperationException("Cannot reactivate a user without manual review.");
             }
@@ -97,7 +98,7 @@ namespace CanvasFlow.Api.Services
 
         public async Task<User> BlockUser(int adminUserId, int targetUserId)
         {
-            return await UpdateUserStatus(adminUserId, targetUserId, "Blocked");
+            return await UpdateUserStatus(adminUserId, targetUserId, UserStatus.Blocked);
         }
 
         public async Task SendAdminMessage(int adminUserId, int recipientId, string content)

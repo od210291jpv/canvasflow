@@ -1,6 +1,6 @@
-// Services/MessagingService.cs
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CanvasFlow.Api.Services
@@ -20,7 +20,10 @@ namespace CanvasFlow.Api.Services
             var sender = await _context.Users.FindAsync(senderId);
             var recipient = await _context.Users.FindAsync(recipientId);
 
-            if (sender == null || recipient == null || sender.IsDeleted || recipient.IsDeleted)
+            if (sender == null || recipient == null || 
+                sender.IsDeleted || recipient.IsDeleted || 
+                sender.AccountStatus != UserStatus.Active || 
+                recipient.AccountStatus != UserStatus.Active)
             {
                 throw new InvalidOperationException("One or both users are inactive or do not exist.");
             }
