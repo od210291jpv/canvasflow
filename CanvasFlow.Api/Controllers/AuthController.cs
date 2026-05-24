@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using CanvasFlow.Api.Services;
 using CanvasFlow.Api.Models;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -42,9 +44,47 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = ex.Message });
             }
         }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null)
+                {
+                    return Unauthorized(new { error = "User ID not found in token." });
+                }
+
+                if (int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    var user = await _authService.GetUserById(userId);
+                    if (user == null)
+                    {
+                        return NotFound(new { error = "User not found." });
+                    }
+
+                    return Ok(new
+                    {
+                        user.Id,
+                        user.Username,
+                        user.Email,
+                        user.Role,
+                        user.AccountStatus,
+                        user.PublicationCount
+                    });
+                }
+
+                return BadRequest(new { error = "Invalid User ID format in token." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 
-    // DTOs for clean request/response handling
     public class RegisterDto
     {
         public string Username { get; set; } = string.Empty;

@@ -45,6 +45,11 @@ namespace CanvasFlow.Api.Services
             return GenerateJwtToken(user);
         }
 
+        public async Task<User?> GetUserById(int userId)
+        {
+            return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+        }
+
         private string GenerateJwtToken(User user)
         {
             var jwtKey = _configuration["Jwt:Key"] ?? "ThisIsASuperSecretKeyForTesting123!";
