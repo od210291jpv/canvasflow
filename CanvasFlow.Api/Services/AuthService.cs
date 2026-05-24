@@ -37,7 +37,6 @@ namespace CanvasFlow.Api.Services
                 throw new UnauthorizedAccessException("Invalid credentials or account is inactive.");
             }
 
-            // Basic password check (In production, use proper hashing/comparison)
             if (user.PasswordHash != HashPassword(password))
             {
                 throw new UnauthorizedAccessException("Invalid credentials.");
@@ -114,8 +113,6 @@ namespace CanvasFlow.Api.Services
                 throw new UnauthorizedAccessException("Only Admins can change user status.");
             }
 
-            // Logic to prevent status downgrade (e.g., cannot go from Active to Pending)
-            // But ALLOW unblocking (Blocked to Active)
             if (user.AccountStatus == UserStatus.Active && newStatus == UserStatus.Pending)
             {
                 throw new InvalidOperationException("Cannot revert an active user to pending.");
@@ -125,7 +122,6 @@ namespace CanvasFlow.Api.Services
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-            // Audit the change
             await _auditService.LogActionAsync(adminUserId, $"User Status Changed to {newStatus}", "User", targetUserId, $"Status changed from {user.AccountStatus} to {newStatus}");
 
             return user;

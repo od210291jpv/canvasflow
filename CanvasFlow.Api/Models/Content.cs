@@ -9,7 +9,6 @@ namespace CanvasFlow.Api.Models
         public string Description { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = string.Empty; // URL to the uploaded art
         
-        // Removed List<string> Tags to use the proper relationship
         public ICollection<Tag> Tags { get; set; } = new List<Tag>(); 
         
         public DateTime UploadDate { get; set; } = DateTime.UtcNow;
