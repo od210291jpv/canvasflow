@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "CanvasFlow.Web": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:57825;http://localhost:57826"
+    }
+  }
+}
