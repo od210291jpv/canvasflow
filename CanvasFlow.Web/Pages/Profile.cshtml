@@ -5,7 +5,6 @@
 }
 
 <div class="profile-layout-container">
-    <!-- Left Column: Profile Card -->
     <div class="profile-card-wrapper">
         <div class="glass-card">
             <div class="profile-header">
@@ -43,13 +42,12 @@
                 </div>
             }
 
-            <!-- New Links Section -->
             <div class="profile-links">
                 <a href="/user/management" class="btn-link">👤 Manage Profile</a>
                 <a href="/messages" class="btn-link">💬 Messages</a>
                 <a href="/notifications" class="btn-link">🔔 Notifications</a>
                 <a href="/my-publications" class="btn-link">📚 My Publications</a>
-                <a href="/feed" class="btn-link">📰 Feed</a>
+                <a href="/feed" class="btn-link" id="feed-link">📰 Feed</a>
             </div>
 
             <div class="profile-actions">
@@ -60,23 +58,114 @@
         </div>
     </div>
 
-    <!-- Right Column: Placeholder for Active Sections -->
-    <div class="active-sections-placeholder">
-        <div class="glass-card placeholder-card">
-            <h3>Active Sections</h3>
-            <p class="placeholder-text">
-                This area will display relevant active sections, such as:
-            </p>
-            <ul class="placeholder-list">
-                <li>User's Management Page</li>
-                <li>Recent Messages</li>
-                <li>Unread Notifications</li>
-            </ul>
-            <p class="placeholder-note">
-                (Content to be dynamically loaded here)
+    <div class="active-sections-placeholder" id="feed-container">
+        <div class="glass-card feed-card">
+            <h3 id="feed-title">Welcome to the Community Feed</h3>
+            <div id="feed-content">
+                <p class="placeholder-text">Click the "Feed" link on the left to view the latest community activity.</p>
             </div>
+            <div id="pagination-controls" class="pagination-controls">
+                </div>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const feedLink = document.getElementById('feed-link');
+        const feedContent = document.getElementById('feed-content');
+        const paginationControls = document.getElementById('pagination-controls');
+        const feedTitle = document.getElementById('feed-title');
+        const baseUrl = 'https://localhost:5000';
+
+        async function loadFeed(page = 1) {
+            feedContent.innerHTML = '<div class="loading-spinner">Loading feed...</div>';
+            paginationControls.innerHTML = '';
+            feedTitle.textContent = 'Community Feed';
+
+            try {
+                const response = await fetch(`${baseUrl}/api/Content/feed?page=${page}&limit=20`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayFeed(data);
+                    renderPagination(data.totalPages, page);
+                } else {
+                    feedContent.innerHTML = `<div class="alert alert-error" style="color: var(--error-color);">Error loading feed: ${data.error || 'Unknown error.'}</div>`;
+                    paginationControls.innerHTML = '';
+                }
+            } catch (error) {
+                console.error("Fetch error:", error);
+                feedContent.innerHTML = '<div class="alert alert-error" style="color: var(--error-color);">Could not connect to the feed service. Please try again later.</div>';
+                paginationControls.innerHTML = '';
+            }
+        }
+
+        function displayFeed(content) {
+            let html = '';
+            content.forEach(item => {
+                html += `
+                    <div class="feed-item">
+                        <div class="feed-header">
+                            <img src="${baseUrl}/${item.imageUrl}" alt="${item.Title}" class="feed-avatar">
+                            <div class="feed-info">
+                                <h4 class="feed-title">${item.Title}</h4>
+                                <p class="feed-author">By ${item.user.username} on ${new Date(item.UploadDate).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div class="feed-body">
+                            <p>${item.Description}</p>
+                        </div>
+                        <div class="feed-actions">
+                            <button class="btn-like" data-content-id="${item.Id}">❤️ Like (${item.LikeCount})</button>
+                        </div>
+                    </div>
+                `;
+            });
+            feedContent.innerHTML = html;
+        }
+
+        function renderPagination(totalPages, currentPage) {
+            let paginationHtml = '';
+            const maxPagesToShow = 5;
+            const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+            const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+            paginationHtml += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Previous</button>`;
+            paginationHtml += `<button class="pagination-btn ${currentPage === 1 ? 'active' : ''}" data-page="1" ${currentPage === 1 ? 'disabled' : ''}>1</button>`;
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i !== 1 && i !== totalPages) {
+                    paginationHtml += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+                }
+            }
+
+            if (totalPages > 1) {
+                paginationHtml += `<button class="pagination-btn ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''}>${totalPages}</button>`;
+            }
+
+            paginationHtml += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next &raquo;</button>`;
+
+            paginationControls.innerHTML = paginationHtml;
+        }
+
+        paginationControls.addEventListener('click', (e) => {
+            if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+                const page = e.target.dataset.page;
+                if (page === 'prev') {
+                    loadFeed(parseInt(document.querySelector('.pagination-btn.active').dataset.page) - 1);
+                } else if (page === 'next') {
+                    loadFeed(parseInt(document.querySelector('.pagination-btn.active').dataset.page) + 1);
+                } else {
+                    loadFeed(parseInt(page));
+                }
+            }
+        });
+
+        // Завантажуємо стрічку при відкритті сторінки
+        loadFeed(1);
+    });
+</script>
 
 <style>
     :root {
@@ -92,32 +181,37 @@
         margin: 0;
         padding: 0;
         min-height: 100vh;
-        /* Removed vertical centering to allow natural flow */
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: var(--text-color);
     }
 
-    /* --- New Layout Container --- */
+    /* --- Base Layout --- */
     .profile-layout-container {
         display: flex;
         gap: 30px;
         width: 90%;
         max-width: 1200px;
-        padding: 40px 20px; /* Added padding for margins */
-        margin: 0 auto; /* Center the entire container */
+        padding: 40px 20px;
+        margin: 0 auto;
         justify-content: center;
-        align-items: flex-start; /* Ensure content starts from the top */
+        align-items: flex-start;
     }
 
-    /* --- Left Column (Profile Card) --- */
     .profile-card-wrapper {
-        /* Adjusted flex basis to give it a more substantial width (approx 35%) */
         flex: 0 0 350px; 
-        max-width: 380px; /* Slightly wider max-width */
+        max-width: 380px;
         min-width: 300px;
+        position: sticky;
+        top: 40px; /* Залишає профіль на місці при скролінгу стрічки */
     }
 
+    .active-sections-placeholder {
+        flex: 1; 
+        min-width: 0;
+    }
+
+    /* --- Glass Cards --- */
     .glass-card {
         background: var(--glass-bg);
         backdrop-filter: blur(15px);
@@ -129,51 +223,8 @@
         text-align: center;
     }
 
-    /* --- Right Column (Placeholder) --- */
-    .active-sections-placeholder {
-        /* Adjusted flex basis to give it a more substantial width (approx 65%) */
-        flex: 1; 
-        min-width: 0; /* Allows it to shrink properly */
-    }
-
-    .placeholder-card {
-        padding: 30px;
-        text-align: left;
-    }
-
-    .placeholder-card h3 {
-        color: var(--accent-color);
-        border-bottom: 2px solid rgba(0, 210, 255, 0.3);
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-
-    .placeholder-text {
-        margin-bottom: 20px;
-        opacity: 0.8;
-    }
-
-    .placeholder-list {
-        list-style: none;
-        padding: 0;
-        margin-bottom: 30px;
-    }
-
-    .placeholder-list li {
-        padding: 8px 0;
-        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
-    }
-
-    .placeholder-note {
-        font-size: 0.9rem;
-        opacity: 0.6;
-        margin-top: 20px;
-    }
-
-    /* --- Existing Profile Card Styles (Adjusted) --- */
-    .profile-header {
-        margin-bottom: 30px;
-    }
+    /* --- Profile Specific Styles --- */
+    .profile-header { margin-bottom: 30px; }
 
     .avatar {
         width: 80px;
@@ -190,103 +241,196 @@
         box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
     }
 
-    .profile-name {
-        margin: 0;
-        font-size: 1.8rem;
-    }
+    .profile-name { margin: 0; font-size: 1.8rem; }
+    .profile-role { margin: 5px 0 0; opacity: 0.7; font-size: 1rem; }
+    
+    .profile-details { text-align: left; margin-bottom: 30px; }
+    .detail-item { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+    .detail-item label { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; margin-bottom: 5px; }
+    .detail-item p, .detail-item span { font-size: 1.1rem; margin: 0; }
 
-    .profile-role {
-        margin: 5px 0 0;
-        opacity: 0.7;
-        font-size: 1rem;
-    }
-
-    .profile-details {
-        text-align: left;
-        margin-bottom: 30px;
-    }
-
-    .detail-item {
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .detail-item label {
-        display: block;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        opacity: 0.6;
-        margin-bottom: 5px;
-    }
-
-    .detail-item p, .detail-item span {
-        font-size: 1.1rem;
-        margin: 0;
-    }
-
-    .status-badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: inline-block; }
     .status-badge.active { background: rgba(0, 255, 0, 0.2); color: #00ff00; }
     .status-badge.pending { background: rgba(255, 255, 0, 0.2); color: #ffff00; }
     .status-badge.blocked { background: rgba(255, 0, 0, 0.2); color: #ff0000; }
 
-    /* --- New Link Styles --- */
-    .profile-links {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 30px;
+    .profile-links { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
+    .btn-link {
+        display: flex; align-items: center; gap: 10px; padding: 12px;
+        background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px;
+        text-decoration: none; color: var(--text-color); font-weight: bold;
+        transition: background 0.3s, border-color 0.3s, transform 0.3s;
+        text-align: left;
+    }
+    .btn-link:hover {
+        background: var(--link-hover-bg); border-color: var(--accent-color);
+        transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 210, 255, 0.1);
     }
 
-    .btn-link {
-        display: block;
-        padding: 12px;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 10px;
-        text-decoration: none;
-        color: var(--text-color);
-        font-weight: bold;
-        transition: background 0.3s, border-color 0.3s;
+    .profile-actions { margin-top: 20px; }
+    .btn-logout {
+        width: 100%; padding: 12px; background: transparent; border: 1px solid var(--error-color);
+        color: var(--error-color); border-radius: 10px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;
+    }
+    .btn-logout:hover { background: var(--error-color); color: white; }
+
+    /* --- Right Column (Feed Styles) --- */
+    .feed-card {
         text-align: left;
         display: flex;
-        align-items: center;
-        gap: 10px;
+        flex-direction: column;
+        min-height: 100%;
     }
 
-    .btn-link:hover {
+    #feed-title {
+        color: var(--accent-color);
+        border-bottom: 2px solid rgba(0, 210, 255, 0.3);
+        padding-bottom: 10px;
+        margin-top: 0;
+        margin-bottom: 25px;
+    }
+
+    .placeholder-text {
+        opacity: 0.8;
+        margin-bottom: 20px;
+    }
+
+    .feed-item {
+        background: rgba(0, 0, 0, 0.15); /* Трохи темніший фон для контрасту з головною карткою */
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        margin-bottom: 25px;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .feed-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .feed-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .feed-avatar {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        flex-shrink: 0;
+    }
+
+    .feed-info h4 {
+        margin: 0;
+        font-size: 1.2rem;
+        color: var(--accent-color);
+    }
+
+    .feed-author {
+        margin: 4px 0 0;
+        font-size: 0.85rem;
+        opacity: 0.6;
+    }
+
+    .feed-body p {
+        margin: 0;
+        line-height: 1.6;
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    .feed-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+    .btn-like {
+        padding: 8px 15px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--text-color);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s ease;
+    }
+
+    .btn-like:hover {
+        background: rgba(255, 75, 43, 0.2); /* Легкий червоний відтінок при наведенні */
+        border-color: var(--error-color);
+        color: #fff;
+    }
+
+    /* --- Pagination --- */
+    .pagination-controls {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: auto; /* Вирівнювання по нижньому краю */
+        padding-top: 30px;
+    }
+
+    .pagination-btn {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--text-color);
+        padding: 8px 16px;
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
         background: var(--link-hover-bg);
         border-color: var(--accent-color);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0, 210, 255, 0.1);
+        color: var(--accent-color);
     }
 
-    /* --- Existing Action Button --- */
-    .profile-actions {
-        margin-top: 20px;
+    .pagination-btn.active {
+        background: var(--accent-color);
+        border-color: var(--accent-color);
+        color: #000;
     }
 
-    .btn-logout {
-        width: 100%;
-        padding: 12px;
-        background: transparent;
-        border: 1px solid var(--error-color);
-        color: var(--error-color);
-        border-radius: 10px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
+    .pagination-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
     }
 
-    .btn-logout:hover {
-        background: var(--error-color);
-        color: white;
+.loading-spinner {
+        text-align: center;
+        padding: 40px;
+        font-size: 1.2rem;
+        color: var(--accent-color);
+        animation: pulse 1.5s infinite;
+    }
+
+    @@keyframes pulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+
+    /* --- Responsive adjustments --- */
+    @@media (max-width: 900px) {
+        .profile-layout-container {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .profile-card-wrapper {
+            flex: auto;
+            max-width: 100%;
+            position: static;
+        }
     }
 </style>

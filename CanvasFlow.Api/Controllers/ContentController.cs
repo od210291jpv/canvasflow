@@ -8,7 +8,8 @@ namespace CanvasFlow.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [AllowAnonymous]
+    //[Authorize]
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
@@ -18,6 +19,7 @@ namespace CanvasFlow.Api.Controllers
             _contentService = contentService;
         }
 
+        [AllowAnonymous]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed(
             [FromQuery] int page = 1, 
