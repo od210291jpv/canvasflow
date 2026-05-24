@@ -1,0 +1,183 @@
+@page
+@model CanvasFlow.Web.Pages.ProfileModel
+@{
+    ViewData["Title"] = "User Profile";
+}
+
+<div class="profile-container">
+    <div class="glass-card">
+        <div class="profile-header">
+            <div class="avatar">
+                @Model.UserProfile?.Username?.Substring(0, 1).ToUpper() ?? "?"
+            </div>
+            <h2 class="profile-name">@Model.UserProfile?.Username</h2>
+            <p class="profile-role">@Model.UserProfile?.Role</p>
+        </div>
+
+        @if (Model.IsError)
+        {
+            <div class="alert alert-error">
+                @Model.ErrorMessage
+            </div>
+        }
+
+        @if (Model.UserProfile != null)
+        {
+            <div class="profile-details">
+                <div class="detail-item">
+                    <label>Email Address</label>
+                    <p>@Model.UserProfile.Email</p>
+                </div>
+                <div class="detail-item">
+                    <label>Account Status</label>
+                    <span class="status-badge @Model.UserProfile.AccountStatus.ToString().ToLower()">
+                        @Model.UserProfile.AccountStatus
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <label>Publications</label>
+                    <p>@Model.UserProfile.PublicationCount</p>
+                </div>
+            </div>
+        }
+
+        <div class="profile-actions">
+            <form method="post" asp-page-handler="Logout">
+                <button type="submit" class="btn-logout">Logout</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.15);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-color: #ffffff;
+        --accent-color: #00d2ff;
+        --error-color: #ff4b2b;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+
+    .profile-container {
+        width: 100%;
+        max-width: 500px;
+        padding: 20px;
+    }
+
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-intfilter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        text-align: center;
+    }
+
+    .profile-header {
+        margin-bottom: 30px;
+    }
+
+    .avatar {
+        width: 80px;
+        height: 80px;
+        background: var(--accent-color);
+        color: #000;
+        font-size: 2.5rem;
+        font-weight: bold;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
+    }
+
+    .profile-name {
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .profile-role {
+        margin: 5px 0 0;
+        opacity: 0.7;
+        font-size: 1rem;
+    }
+
+    .profile-details {
+        text-align: left;
+        margin-bottom: 30px;
+    }
+
+    .detail-item {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .detail-item label {
+        display: block;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.6;
+        margin-bottom: 5px;
+    }
+
+    .detail-item p, .detail-item span {
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-string: bold;
+    }
+
+    .status-badge.active { background: rgba(0, 255, 0, 0.2); color: #00ff00; }
+    .status-badge.pending { background: rgba(255, 255, 0, 0.2); color: #ffff00; }
+    .status-badge.blocked { background: rgba(255, 0, 0, 0.2); color: #ff0000; }
+
+    .alert {
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .alert-error {
+        background: rgba(255, 0, 0, 0.2);
+        border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+
+    .btn-logout {
+        width: 100%;
+        padding: 12px;
+        background: transparent;
+        border: 1px solid var(--error-color);
+        color: var(--error-color);
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-logout:hover {
+        background: var(--error-color);
+        color: white;
+    }
+</style>

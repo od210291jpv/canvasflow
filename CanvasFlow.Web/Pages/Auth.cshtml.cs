@@ -43,9 +43,16 @@ namespace CanvasFlow.Web.Pages
                 {
                     var result = JsonDocument.Parse(content);
                     var token = result.RootElement.GetProperty("token").GetString();
-                    // In a real app, you'd store this in a secure cookie or local storage
-                    Message = "Login Successful! Token received.";
+                    
+                    // Store token in session for the Profile page to use
+                    HttpContext.Session.SetString("AuthToken", token ?? "");
+
+                    Message = "Login Successful! Redirecting...";
                     IsError = false;
+
+                    // Small delay to allow user to see success message before redirect
+                    await Task.Delay(1000);
+                    return RedirectToPage("/Profile");
                 }
                 else
                 {

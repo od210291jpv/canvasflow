@@ -11,7 +11,7 @@
             <a class="tab-btn @(Model.IsLoginMode ? "active" : "")"
                asp-page="/Auth" asp-route-loginMode="true">Login</a>
 
-            <a class="tab-btn @(!Model.IsLoginMode ? "active" : "")"
+            <a class="tab-btn @(!Model.IsLoginMode ? "API_ERROR_REPLACE_ME" : "")"
                asp-page="/Auth" asp-route-loginMode="false">Register</a>
         </div>
 
@@ -105,44 +105,44 @@
     }
 
     .tab-btn {
-        display: inline-block; /* Виправлення для тегу <a> */
-        text-decoration: none; /* Прибираємо підкреслення посилання */
+        display: inline-block;
+        text-decoration: none;
         text-align: center;
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.6); /* Виправлено одруківку 25lag */
+        color: rgba(255, 255, 255, 0.6);
         font-size: 1.1rem;
         cursor: pointer;
         padding: 5px 15px;
         transition: all 0.3s ease;
     }
 
-        .tab-btn:hover {
-            color: rgba(255, 255, 255, 0.9);
-        }
+    .tab-btn:hover {
+        color: rgba(255, 255, 255, 0.9);
+    }
 
-        .tab-btn.active {
-            color: var(--text-color);
-            border-bottom: 2px solid var(--accent-color);
-        }
+    .tab-btn.active {
+        color: var(--text-color);
+        border-bottom: 2px solid var(--accent-color);
+    }
 
     .form-group {
         margin-bottom: 20px;
         text-align: left;
     }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
 
     .form-control {
         width: 100%;
         padding: 12px;
         background: rgba(255, 255, 255, 0.1);
-        border: 1px solid var(--glass-border); /* Замінив var(--glass-padding), якого не було в :root */
+        border: 1px solid var(--glass-border);
         border-radius: 10px;
         color: white;
         box-sizing: border-box;
@@ -150,13 +150,13 @@
         transition: border 0.3s ease;
     }
 
-        .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
+    .form-control::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
 
-        .form-control:focus {
-            border-color: var(--accent-color);
-        }
+    .form-control:focus {
+        border-color: var(--accent/accent-color);
+    }
 
     .btn-submit {
         width: 100%;
@@ -171,10 +171,10 @@
         transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
-        .btn-submit:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
+    .btn-submit:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
 
     .alert {
         padding: 10px;
@@ -191,6 +191,6 @@
 
     .alert-success {
         background: rgba(0, 255, 0, 0.2);
-        border: 1px solid rgba(0, 255, 0, 0.3); /* Виправлено одруківку 0-255 */
+        border: 1px solid rgba(0, 255, 0, 0.3);
     }
 </style>
