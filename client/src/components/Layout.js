@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import './Layout.css';
 
 const Layout = ({ children }) => {
@@ -28,16 +28,16 @@ const Layout = ({ children }) => {
     return (
         <div className="app-layout">
             <header className="main-header glass-card">
-                <div className="logo" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ArtFlow</div>
+                <div className="logo">ArtFlow</div>
                 <nav style={{ display: 'flex', gap: '10px' }}>
                     <button className="theme-toggle btn" onClick={toggleDarkMode}>
-                        {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                        {isDarkMode ? 'вЂпёЏ Light' : 'рџЊ™ Dark'}
                     </button>
                     <button className="theme-toggle btn" onClick={() => toggleTheme('pink')}>
-                        🌸 Pink
+                        рџЊё Pink
                     </button>
                     <button className="theme-toggle btn" onClick={() => toggleTheme('white')}>
-                        ⚪ White
+                        вљЄ White
                     </button>
                 </nav>
             </header>

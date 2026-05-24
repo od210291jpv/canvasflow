@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 const ArtCard = ({ art }) => {
     const [isLiked, setIsLiked] = useState(false);
@@ -34,17 +34,68 @@ const ArtCard = ({ art }) => {
         }
     };
 
+    // 1. Отримуємо шлях і визначаємо тип медіа
+    let displayImageUrl = art.imageUrl && art.imageUrl.trim() !== "" ? art.imageUrl : null;
+    let isVideo = false;
+
+    if (displayImageUrl) {
+        // Виправляємо зворотні слеші (специфіка Windows/.NET)
+        displayImageUrl = displayImageUrl.replace(/\\/g, '/');
+        
+        // Якщо шлях відносний (не починається з http), додаємо URL бекенду
+        if (!displayImageUrl.startsWith('http')) {
+            const separator = displayImageUrl.startsWith('/') ? '' : '/';
+            displayImageUrl = `${apiUrl}${separator}${displayImageUrl}`;
+        }
+
+        // Перевіряємо, чи це відео (розширення можна доповнити)
+        const videoExtensions = ['.mp4', '.webm', '.ogg'];
+        isVideo = videoExtensions.some(ext => displayImageUrl.toLowerCase().endsWith(ext));
+    }
+
+    const fallbackImage = "https://via.placeholder.com/600x400/eeeeee/999999?text=No+Image+Available";
+
     return (
         <div className="art-card glass-card" style={{ display: 'flex', flexDirection: 'column', marginBottom: '30px' }}>
             <div className="art-image-container">
-                <img
-                    src={art.imageUrl}
-                    alt={`Artwork: ${art.title}`}
-                    className="art-image"
-                    loading="lazy"
-                    style={{ width: '100%', height: 'auto', display: 'block' }}
-                />
-            </div >
+                {displayImageUrl ? (
+                    isVideo ? (
+                        <video
+                            src={displayImageUrl}
+                            controls
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
+                            onError={(e) => {
+                                // Якщо відео не знайдене, ховаємо його
+                                e.target.style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <img
+                            src={displayImageUrl}
+                            alt={`Artwork: ${art.title}`}
+                            className="art-image"
+                            loading="lazy"
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
+                            onError={(e) => {
+                                e.target.onerror = null; 
+                                e.target.src = fallbackImage;
+                            }}
+                        />
+                    )
+                ) : (
+                    <div style={{ 
+                        width: '100%', 
+                        aspectRatio: '16/10', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.05)',
+                        color: 'var(--color-text-muted)'
+                    }}>
+                        <p>No Media Available</p>
+                    </div>
+                )}
+            </div>
 
             <div className="art-details" style={{ padding: '20px' }}>
                 <h2 className="art-title" style={{ margin: '0 0 10px 0' }}>{art.title}</h2>
@@ -81,8 +132,8 @@ const ArtCard = ({ art }) => {
                     <span style={{ fontSize: '0.9rem', color: 'var(--color-secondary)' }}>
                         {likeCount} likes
                     </span>
-                </div >
-            </div >
+                </div>
+            </div>
         </div>
     );
 };

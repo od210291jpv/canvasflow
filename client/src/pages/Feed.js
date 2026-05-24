@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import ArtCard from '../components/ArtCard';
 import SkeletonLoader from '../components/SkeletonLoader';
 import UploadModal from '../components/UploadModal';
@@ -8,7 +8,6 @@ const Feed = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const [selectedTags, setSelectedTags] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState('');
 
@@ -33,15 +32,18 @@ const Feed = () => {
             if (response.ok) {
                 const data = await response.json();
                 
+                // Ensure data is an array
+                const newItems = Array.isArray(data) ? data : [];
+
                 if (isInitial) {
-                    setArtFeed(data);
+                    setArtFeed(newItems);
                     setPage(2);
                 } else {
-                    setArtFeed(prev => [...prev, ...data]);
+                    setArtFeed(prev => [...prev, ...newItems]);
                     setPage(prev => prev + 1);
                 }
 
-                if (data.length < limit) {
+                if (newItems.length < limit) {
                     setHasMore(false);
                 }
             } else {
@@ -59,7 +61,9 @@ const Feed = () => {
     }, []);
 
     const handleArtCreationSuccess = (newArt) => {
-        setArtFeed(prev => [newArt, ...prev]);
+        if (newArt) {
+            setArtFeed(prev => [newArt, ...prev]);
+        }
     };
 
     return (
@@ -79,11 +83,13 @@ const Feed = () => {
 
             <div className="art-grid">
                 {artFeed.length > 0 ? (
-                    artFeed.map(art => (
+                    artFeed.filter(art => art && art.id).map(art => (
                         <ArtCard key={art.id} art={art} />
                     ))
                 ) : !isLoading && (
-                    <p>No art found.</p>
+                    <div style={{ textAlign: 'center', padding: '50px', color: 'var(--color-text-muted)' }}>
+                        <p>No art found in the feed yet.</p>
+                    </div>
                 )}
             </div >
 

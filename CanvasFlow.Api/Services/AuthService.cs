@@ -4,6 +4,10 @@ using CanvasFlow.Api.Models;
 using CanvasFlow.Api.Models.Enums;
 using CanvasFlow.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,12 +18,14 @@ namespace CanvasFlow.Api.Services
         private readonly ApplicationDbContext _context;
         private readonly IAuditService _auditService;
         private readonly INotificationService _notificationService;
+        private readonly IConfiguration _configuration;
 
-        public AuthService(ApplicationDbContext context, IAuditService auditService, INotificationService notificationService)
+        public AuthService(ApplicationDbContext context, IAuditService auditService, INotificationService notificationService, IConfiguration configuration)
         {
             _context = context;
             _auditService = auditService;
             _notificationService = notificationService;
+            _configuration = configuration;
         }
 
         public async Task<string> Login(string username, string password)
@@ -37,8 +43,34 @@ namespace CanvasFlow.Api.Services
                 throw new UnauthorizedAccessException("Invalid credentials.");
             }
 
-            // Generate and return JWT token (Implementation omitted for brevity, assume successful token generation)
-            return "fake_jwt_token"; 
+            return GenerateJwtToken(user);
+        }
+
+        private string GenerateJwtToken(User user)
+        {
+            var jwtKey = _configuration["Jwt:Key"] ?? "ThisIsASuperSecretKeyForTesting123!";
+            var jwtIssuer = _configuration["Jwt:Issuer"] ?? "CanvasFlow";
+            var jwtAudience = _configuration["Jwt:Audience"] ?? "CanvasFlowClients";
+
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("sub", user.Id.ToString()) // Add sub for compatibility
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: DateTime.Now.AddDays(1),
+                signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         public async Task<User> RegisterUser(string username, string email, string password)

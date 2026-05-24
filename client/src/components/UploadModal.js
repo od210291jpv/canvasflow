@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import './UploadModal.css';
 
 const UploadModal = ({ isOpen, onClose, onSubmitSuccess }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+    const [file, setFile] = useState(null); // Змінено: тепер зберігаємо об'єкт файлу
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
@@ -13,43 +13,66 @@ const UploadModal = ({ isOpen, onClose, onSubmitSuccess }) => {
 
     if (!isOpen) return null;
 
+    // Обробник вибору файлу
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        
+        if (!file) {
+            setError('Будь ласка, виберіть медіафайл (зображення або відео).');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             const token = localStorage.getItem('authToken');
             const tagList = tags.split(',').map(t => t.trim()).filter(t => t !== '');
             
+            // Створюємо FormData для відправки файлу разом з іншими даними
+            const formData = new FormData();
+            formData.append('title', title.trim());
+            formData.append('description', description.trim());
+            
+            // Важливо: ім'я ключа 'file' має збігатися з назвою параметра у вашому C# контролері!
+            // Якщо у C# написано (IFormFile image), змініть 'file' на 'image' нижче.
+            formData.append('file', file); 
+            
+            // Додаємо теги. Залежно від бекенду, він може очікувати масив або один рядок.
+            // Відправляємо кожен тег окремо, щоб ASP.NET міг зібрати їх у List<string>
+            tagList.forEach(tag => formData.append('tags', tag));
+
             const response = await fetch(`${apiUrl}/api/Content/upload`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    // ВАЖЛИВО: Ми НЕ встановлюємо 'Content-Type' тут. 
+                    // Браузер автоматично встановить 'multipart/form-data' при використанні FormData
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    title,
-                    description,
-                    imageUrl,
-                    tags: tagList
-                }),
+                body: formData, // Відправляємо FormData замість JSON
             });
 
             if (response.ok) {
                 const newArt = await response.json();
                 onSubmitSuccess(newArt);
+                // Очищаємо форму після успіху
                 setTitle('');
                 setDescription('');
                 setTags('');
-                setImageUrl('');
+                setFile(null);
                 onClose();
             } else {
                 const data = await response.json();
-                setError(data.error || 'Failed to publish artwork.');
+                setError(data.error || 'Не вдалося опублікувати арт.');
             }
         } catch (err) {
-            setError('Error connecting to the server.');
+            setError('Помилка з\'єднання із сервером.');
         } finally {
             setIsSubmitting(false);
         }
@@ -88,14 +111,14 @@ const UploadModal = ({ isOpen, onClose, onSubmitSuccess }) => {
                         ></textarea>
                     </div>
 
+                    {/* Оновлене поле для вибору файлу */}
                     <div className="form-group">
-                        <label htmlFor="imageUrl">Image URL *</label>
+                        <label htmlFor="fileInput">Media File (Image/Video) *</label>
                         <input
-                            id="imageUrl"
-                            type="text"
-                            value={imageUrl}
-                            onChange={e => setImageUrl(e.target.value)}
-                            placeholder="https://example.com/art.jpg"
+                            id="fileInput"
+                            type="file"
+                            accept="image/*,video/*,.gif" // Обмежуємо вибір лише медіафайлами
+                            onChange={handleFileChange}
                             required
                         />
                     </div>

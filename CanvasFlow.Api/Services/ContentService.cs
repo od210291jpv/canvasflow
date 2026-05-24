@@ -47,8 +47,8 @@ namespace CanvasFlow.Api.Services
                 UserId = userId,
                 Title = title,
                 Description = description,
-                // ImageUrl = imageUrl, // ,      Content
-                IsPublished = true, //    -
+                ImageUrl = imageUrl,
+                IsPublished = true,
                                     // CreatedAt = DateTime.UtcNow,
                 Tags = new List<Tag>()
             };
@@ -105,7 +105,7 @@ namespace CanvasFlow.Api.Services
 
             content.Title = title;
             content.Description = description;
-            // content.ImageUrl = imageUrl; //    
+            content.ImageUrl = imageUrl; 
 
             //  
             content.Tags.Clear();

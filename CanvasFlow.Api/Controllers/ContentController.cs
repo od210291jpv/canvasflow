@@ -1,3 +1,4 @@
+using CanvasFlow.Api.Models;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +31,7 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            var feed = await _contentService.GetFeedAsync(page, limit);
+            List<Content> feed = await _contentService.GetFeedAsync(page, limit);
             return Ok(feed);
         }
 
@@ -47,23 +48,54 @@ namespace CanvasFlow.Api.Controllers
             return Ok(content);
         }
 
-        // POST: api/Content/upload
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadContent([FromBody] UploadContentDto model)
+        public async Task<IActionResult> UploadContent([FromForm] UploadContentDto model)
         {
             // Get current user ID from JWT token
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
 
             try
             {
+                // 1. Перевіряємо, чи взагалі надійшов файл
+                if (model.File == null || model.File.Length == 0)
+                {
+                    return BadRequest(new { error = "Please select a valid media file." });
+                }
+
+                // 2. Створюємо шлях до папки wwwroot/uploads
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                // 3. Генеруємо унікальне ім'я для файлу (щоб не перезаписати існуючі)
+                // Використовуємо оригінальне розширення файлу (.jpg, .png, .mp4 тощо)
+                var fileExtension = Path.GetExtension(model.File.FileName);
+                var uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+                var physicalFilePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                // 4. Фізично зберігаємо файл на диск
+                using (var stream = new FileStream(physicalFilePath, FileMode.Create))
+                {
+                    await model.File.CopyToAsync(stream);
+                }
+
+                // 5. Формуємо відносний URL, який буде збережено в базу і відправлено на фронтенд
+                var generatedImageUrl = "/uploads/" + uniqueFileName;
+
+                // 6. Передаємо вже згенерований URL у ваш сервіс замість model.ImageUrl
                 var newContent = await _contentService.UploadContentAsync(
-                    userId, 
-                    model.Title, 
-                    model.Description, 
-                    model.ImageUrl, 
+                    userId,
+                    model.Title,
+                    model.Description,
+                    generatedImageUrl, // <-- Тепер тут лежить правильний шлях
                     model.Tags);
-                
-                // FIX: Using the correct nameof() for the implemented method
+
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);
             }
             catch (Exception ex)
@@ -142,7 +174,9 @@ namespace CanvasFlow.Api.Controllers
     {
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public string ImageUrl { get; set; } = string.Empty;
+
+        public IFormFile? File { get; set; }
+
         public List<string> Tags { get; set; } = new List<string>();
     }
 
