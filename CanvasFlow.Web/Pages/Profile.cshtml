@@ -43,11 +43,11 @@
             }
 
             <div class="profile-links">
-                <a href="/user/management" class="btn-link">👤 Manage Profile</a>
-                <a href="/messages" class="btn-link">💬 Messages</a>
-                <a href="/notifications" class="btn-link">🔔 Notifications</a>
-                <a href="/my-publications" class="btn-link">📚 My Publications</a>
-                <a href="/feed" class="btn-link" id="feed-link">📰 Feed</a>
+                <a href="#" class="btn-link nav-link" data-section="Management">👤 Manage Profile</a>
+                <a href="#" class="btn-link nav-link" data-section="Messages">💬 Messages</a>
+                <a href="#" class="btn-link nav-link" data-section="Notifications">🔔 Notifications</a>
+                <a href="#" class="btn-link nav-link" data-section="Publications">📚 My Publications</a>
+                <a href="#" class="btn-link nav-link active-link" data-section="Feed" id="feed-link">📰 Feed</a>
             </div>
 
             <div class="profile-actions">
@@ -58,26 +58,93 @@
         </div>
     </div>
 
-    <div class="active-sections-placeholder" id="feed-container">
-        <div class="glass-card feed-card">
-            <h3 id="feed-title">Welcome to the Community Feed</h3>
-            <div id="feed-content">
-                <p class="placeholder-text">Click the "Feed" link on the left to view the latest community activity.</p>
-            </div>
-            <div id="pagination-controls" class="pagination-controls">
+    <div class="active-sections-placeholder">
+        
+        <div id="feed-container">
+            <div class="glass-card feed-card">
+                <h3 id="feed-title">Welcome to the Community Feed</h3>
+                <div id="feed-content">
+                    <p class="placeholder-text">Loading the latest community activity...</p>
                 </div>
+                <div id="pagination-controls" class="pagination-controls"></div>
+            </div>
         </div>
+
+        <div id="generic-placeholder" style="display: none;">
+            <div class="glass-card placeholder-card">
+                <h3 id="placeholder-title">Section Title</h3>
+                <p class="placeholder-text">This section is currently under construction. Please check back later!</p>
+                <div class="placeholder-icon">🚧</div>
+            </div>
+        </div>
+
     </div>
+</div>
+
+<div id="media-modal" class="media-modal">
+    <span class="close-modal">&times;</span>
+    <img class="modal-content" id="modal-image">
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const feedLink = document.getElementById('feed-link');
         const feedContent = document.getElementById('feed-content');
         const paginationControls = document.getElementById('pagination-controls');
         const feedTitle = document.getElementById('feed-title');
         const baseUrl = 'https://localhost:5000';
 
+        // Navigation Logic
+        const navLinks = document.querySelectorAll('.nav-link');
+        const feedContainer = document.getElementById('feed-container');
+        const placeholderContainer = document.getElementById('generic-placeholder');
+        const placeholderTitle = document.getElementById('placeholder-title');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Update active link styling
+                navLinks.forEach(l => l.classList.remove('active-link'));
+                link.classList.add('active-link');
+
+                const section = link.getAttribute('data-section');
+
+                if (section === 'Feed') {
+                    feedContainer.style.display = 'block';
+                    placeholderContainer.style.display = 'none';
+                } else {
+                    feedContainer.style.display = 'none';
+                    placeholderContainer.style.display = 'block';
+                    placeholderTitle.textContent = section;
+                }
+            });
+        });
+
+        // Fullscreen Modal Logic
+        const modal = document.getElementById('media-modal');
+        const modalImg = document.getElementById('modal-image');
+        const closeBtn = document.querySelector('.close-modal');
+
+        // Event delegation for dynamically loaded images
+        feedContent.addEventListener('click', (e) => {
+            if (e.target.classList.contains('feed-media-img')) {
+                modal.style.display = "flex";
+                modalImg.src = e.target.src;
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            }
+        });
+
+        const closeModal = () => {
+            modal.style.display = "none";
+            document.body.style.overflow = 'auto'; // Restore background scrolling
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal(); // Close if clicked outside the image
+        });
+
+        // Feed Loading Logic
         async function loadFeed(page = 1) {
             feedContent.innerHTML = '<div class="loading-spinner">Loading feed...</div>';
             paginationControls.innerHTML = '';
@@ -89,36 +156,43 @@
 
                 if (response.ok) {
                     displayFeed(data);
-                    renderPagination(data.totalPages, page);
+                    renderPagination(data.totalPages || 1, page); // Fallback to 1 if missing
                 } else {
                     feedContent.innerHTML = `<div class="alert alert-error" style="color: var(--error-color);">Error loading feed: ${data.error || 'Unknown error.'}</div>`;
-                    paginationControls.innerHTML = '';
                 }
             } catch (error) {
                 console.error("Fetch error:", error);
                 feedContent.innerHTML = '<div class="alert alert-error" style="color: var(--error-color);">Could not connect to the feed service. Please try again later.</div>';
-                paginationControls.innerHTML = '';
             }
         }
 
         function displayFeed(content) {
             let html = '';
             content.forEach(item => {
-                console.log(item);
+                // Determine description property (handling different cases)
+                const desc = item.Description || item.description || '';
+                const title = item.Title || item.title || 'Untitled';
+                const uploadDate = item.UploadDate || item.uploadDate;
+                const author = (item.User && item.User.Username) || (item.user && item.user.username) || 'Unknown';
+                const authorInitial = author.charAt(0).toUpperCase();
+
                 html += `
                     <div class="feed-item">
                         <div class="feed-header">
-                            <img src="${baseUrl}/${item.imageUrl}" alt="${item.title}" class="feed-avatar">
+                            <div class="feed-avatar-placeholder">${authorInitial}</div>
                             <div class="feed-info">
-                                <h4 class="feed-title">${item.title}</h4>
-                                <p class="feed-author">By ${item.user.username} on ${new Date(item.uploadDate).toLocaleDateString()}</p>
+                                <h4 class="feed-title">${title}</h4>
+                                <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
                             </div>
                         </div>
+                        <div class="feed-media">
+                            <img src="${baseUrl}/${item.imageUrl || item.ImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
+                        </div>
                         <div class="feed-body">
-                            <p>${item.Description}</p>
+                            <p>${desc}</p>
                         </div>
                         <div class="feed-actions">
-                            <button class="btn-like" data-content-id="${item.Id}">❤️ Like (${item.LikeCount})</button>
+                            <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
                         </div>
                     </div>
                 `;
@@ -127,6 +201,8 @@
         }
 
         function renderPagination(totalPages, currentPage) {
+            if (totalPages <= 1) return; // Hide if only 1 page
+
             let paginationHtml = '';
             const maxPagesToShow = 5;
             const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
@@ -153,17 +229,20 @@
         paginationControls.addEventListener('click', (e) => {
             if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
                 const page = e.target.dataset.page;
+                const currentActive = document.querySelector('.pagination-btn.active');
+                const currentPage = currentActive ? parseInt(currentActive.dataset.page) : 1;
+
                 if (page === 'prev') {
-                    loadFeed(parseInt(document.querySelector('.pagination-btn.active').dataset.page) - 1);
+                    loadFeed(currentPage - 1);
                 } else if (page === 'next') {
-                    loadFeed(parseInt(document.querySelector('.pagination-btn.active').dataset.page) + 1);
+                    loadFeed(currentPage + 1);
                 } else {
                     loadFeed(parseInt(page));
                 }
             }
         });
 
-        // Завантажуємо стрічку при відкритті сторінки
+        // Initialize
         loadFeed(1);
     });
 </script>
@@ -204,7 +283,7 @@
         max-width: 380px;
         min-width: 300px;
         position: sticky;
-        top: 40px; /* Залишає профіль на місці при скролінгу стрічки */
+        top: 40px;
     }
 
     .active-sections-placeholder {
@@ -255,6 +334,7 @@
     .status-badge.pending { background: rgba(255, 255, 0, 0.2); color: #ffff00; }
     .status-badge.blocked { background: rgba(255, 0, 0, 0.2); color: #ff0000; }
 
+    /* --- Link Styles --- */
     .profile-links { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
     .btn-link {
         display: flex; align-items: center; gap: 10px; padding: 12px;
@@ -263,9 +343,12 @@
         transition: background 0.3s, border-color 0.3s, transform 0.3s;
         text-align: left;
     }
-    .btn-link:hover {
+    .btn-link:hover, .btn-link.active-link {
         background: var(--link-hover-bg); border-color: var(--accent-color);
         transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 210, 255, 0.1);
+    }
+    .btn-link.active-link {
+        color: var(--accent-color);
     }
 
     .profile-actions { margin-top: 20px; }
@@ -275,32 +358,47 @@
     }
     .btn-logout:hover { background: var(--error-color); color: white; }
 
-    /* --- Right Column (Feed Styles) --- */
-    .feed-card {
+    /* --- Feed & Placeholder Styles --- */
+    .feed-card, .placeholder-card {
         text-align: left;
         display: flex;
         flex-direction: column;
         min-height: 100%;
     }
 
-    #feed-title {
+    .placeholder-card {
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .placeholder-icon {
+        font-size: 4rem;
+        margin-top: 20px;
+        animation: pulse 2s infinite;
+    }
+
+    #feed-title, #placeholder-title {
         color: var(--accent-color);
         border-bottom: 2px solid rgba(0, 210, 255, 0.3);
         padding-bottom: 10px;
         margin-top: 0;
         margin-bottom: 25px;
+        width: 100%;
     }
 
     .placeholder-text {
         opacity: 0.8;
         margin-bottom: 20px;
+        font-size: 1.1rem;
     }
 
     .feed-item {
-        background: rgba(0, 0, 0, 0.15); /* Трохи темніший фон для контрасту з головною карткою */
+        background: rgba(0, 0, 0, 0.15);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 15px;
-        margin-bottom: 25px;
+        margin-bottom: 30px;
         padding: 25px;
         display: flex;
         flex-direction: column;
@@ -310,128 +408,126 @@
 
     .feed-item:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
     }
 
+    /* Header Update: Replaced Image Avatar with Letter Avatar */
     .feed-header {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 15px;
     }
 
-    .feed-avatar {
-        width: 50px;
-        height: 50px;
-        object-fit: cover;
+    .feed-avatar-placeholder {
+        width: 45px;
+        height: 45px;
         border-radius: 12px;
-        border: 1px solid var(--glass-border);
+        background: var(--accent-color);
+        color: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        font-weight: bold;
         flex-shrink: 0;
     }
 
-    .feed-info h4 {
-        margin: 0;
-        font-size: 1.2rem;
-        color: var(--accent-color);
+    .feed-info h4 { margin: 0; font-size: 1.2rem; color: var(--accent-color); }
+    .feed-author { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.6; }
+
+    /* New Feed Media Container */
+    .feed-media {
+        width: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.3);
+        margin: 10px 0;
     }
 
-    .feed-author {
-        margin: 4px 0 0;
-        font-size: 0.85rem;
-        opacity: 0.6;
+    .feed-media-img {
+        width: 100%;
+        max-height: 450px; /* Limits height so very tall images don't stretch too far */
+        object-fit: contain; /* Ensures the whole image is visible */
+        display: block;
+        cursor: zoom-in;
+        transition: transform 0.3s ease;
     }
 
-    .feed-body p {
-        margin: 0;
-        line-height: 1.6;
-        opacity: 0.9;
-        font-size: 1rem;
+    .feed-media-img:hover {
+        transform: scale(1.02);
     }
 
-    .feed-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 5px;
-    }
-
+    .feed-body p { margin: 0; line-height: 1.6; opacity: 0.9; font-size: 1rem; }
+    
+    .feed-actions { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;}
     .btn-like {
-        padding: 8px 15px;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        color: var(--text-color);
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: all 0.2s ease;
+        padding: 8px 15px; background: var(--glass-bg); border: 1px solid var(--glass-border);
+        color: var(--text-color); border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s ease;
+    }
+    .btn-like:hover { background: rgba(255, 75, 43, 0.2); border-color: var(--error-color); color: #fff; }
+
+    /* --- Fullscreen Modal Styles --- */
+    .media-modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
     }
 
-    .btn-like:hover {
-        background: rgba(255, 75, 43, 0.2); /* Легкий червоний відтінок при наведенні */
-        border-color: var(--error-color);
+    .modal-content {
+        max-width: 90%;
+        max-height: 90vh;
+        border-radius: 8px;
+        box-shadow: 0 0 30px rgba(0, 210, 255, 0.2);
+        animation: zoom 0.3s ease;
+    }
+
+    .close-modal {
+        position: absolute;
+        top: 20px;
+        right: 40px;
         color: #fff;
+        font-size: 50px;
+        font-weight: bold;
+        transition: 0.3s;
+        cursor: pointer;
+        z-index: 10000;
+    }
+
+    .close-modal:hover {
+        color: var(--accent-color);
     }
 
     /* --- Pagination --- */
     .pagination-controls {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: auto; /* Вирівнювання по нижньому краю */
-        padding-top: 30px;
+        display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;
+        margin-top: auto; padding-top: 30px;
     }
-
     .pagination-btn {
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        color: var(--text-color);
-        padding: 8px 16px;
-        cursor: pointer;
-        border-radius: 8px;
-        font-weight: bold;
-        transition: all 0.2s ease;
+        background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-color);
+        padding: 8px 16px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: all 0.2s ease;
     }
+    .pagination-btn:hover:not(:disabled) { background: var(--link-hover-bg); border-color: var(--accent-color); color: var(--accent-color); }
+    .pagination-btn.active { background: var(--accent-color); border-color: var(--accent-color); color: #000; }
+    .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    .pagination-btn:hover:not(:disabled) {
-        background: var(--link-hover-bg);
-        border-color: var(--accent-color);
-        color: var(--accent-color);
-    }
+    .loading-spinner { text-align: center; padding: 40px; font-size: 1.2rem; color: var(--accent-color); animation: pulse 1.5s infinite; }
 
-    .pagination-btn.active {
-        background: var(--accent-color);
-        border-color: var(--accent-color);
-        color: #000;
-    }
+    @@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    @@keyframes zoom { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-    .pagination-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-
-.loading-spinner {
-        text-align: center;
-        padding: 40px;
-        font-size: 1.2rem;
-        color: var(--accent-color);
-        animation: pulse 1.5s infinite;
-    }
-
-    @@keyframes pulse {
-        0% { opacity: 0.6; }
-        50% { opacity: 1; }
-        100% { opacity: 0.6; }
-    }
-
-    /* --- Responsive adjustments --- */
+    /* --- Responsive --- */
     @@media (max-width: 900px) {
-        .profile-layout-container {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .profile-card-wrapper {
-            flex: auto;
-            max-width: 100%;
-            position: static;
-        }
+        .profile-layout-container { flex-direction: column; align-items: stretch; }
+        .profile-card-wrapper { flex: auto; max-width: 100%; position: static; }
+        .feed-media-img { max-height: 300px; }
     }
 </style>
