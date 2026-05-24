@@ -1,5 +1,0 @@
-C:\test\requirements\canvasflow\CanvasFlow.Api\obj\Debug\net8.0\staticwebassets.build.json
-C:\test\requirements\canvasflow\CanvasFlow.Api\obj\Debug\net8.0\staticwebassets.build.json
-C:\test\requirements\canvasflow\CanvasFlow.Api\obj\Debug\net8.0\staticwebassets.build.json
-C:\test\requirements\canvasflow\CanvasFlow.Api\obj\Debug\net8.0\staticwebassets.build.json
-C:\test\requirements\canvasflow\CanvasFlow.Api\obj\Debug\net8.0\staticwebassets.build.json
