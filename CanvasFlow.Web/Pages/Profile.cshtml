@@ -9,7 +9,7 @@
         <div class="glass-card">
             <div class="profile-header">
                 <div class="avatar">
-                    @Model.UserProfile?.Username?.Substring(0, 1).ToUpper() ?? "?"
+                    @Model.UserProfile?.Username
                 </div>
                 <h2 class="profile-name">@Model.UserProfile?.Username</h2>
                 <p class="profile-role">@Model.UserProfile?.Role</p>
@@ -104,13 +104,14 @@
         function displayFeed(content) {
             let html = '';
             content.forEach(item => {
+                console.log(item);
                 html += `
                     <div class="feed-item">
                         <div class="feed-header">
-                            <img src="${baseUrl}/${item.imageUrl}" alt="${item.Title}" class="feed-avatar">
+                            <img src="${baseUrl}/${item.imageUrl}" alt="${item.title}" class="feed-avatar">
                             <div class="feed-info">
-                                <h4 class="feed-title">${item.Title}</h4>
-                                <p class="feed-author">By ${item.user.username} on ${new Date(item.UploadDate).toLocaleDateString()}</p>
+                                <h4 class="feed-title">${item.title}</h4>
+                                <p class="feed-author">By ${item.user.username} on ${new Date(item.uploadDate).toLocaleDateString()}</p>
                             </div>
                         </div>
                         <div class="feed-body">
