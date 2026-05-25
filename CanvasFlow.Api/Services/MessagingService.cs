@@ -48,6 +48,51 @@ namespace CanvasFlow.Api.Services
             return message;
         }
 
+        public async Task<List<InboxItemDto>> GetUserInboxAsync(int userId)
+        {
+            // 1. Отримуємо всі повідомлення, де користувач є відправником або отримувачем,
+            // відсортовані від найновіших до найстаріших.
+            var messages = await _context.Messages
+                .Where(m => !m.IsDeleted && (m.SenderId == userId || m.RecipientId == userId))
+                .OrderByDescending(m => m.Timestamp)
+                .ToListAsync();
+
+            // 2. Групуємо повідомлення за ID іншого користувача (співрозмовника)
+            var groupedMessages = messages.GroupBy(m => m.SenderId == userId ? m.RecipientId : m.SenderId);
+
+            // 3. Отримуємо імена користувачів-співрозмовників одним запитом до БД
+            var contactIds = groupedMessages.Select(g => g.Key).ToList();
+
+            // Примітка: Переконайтеся, що DbSet називається Users у вашому ApplicationDbContext
+            var contacts = await _context.Users
+                .Where(u => contactIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Username);
+
+            var inbox = new List<InboxItemDto>();
+
+            // 4. Формуємо фінальний список для Inbox
+            foreach (var group in groupedMessages)
+            {
+                var contactId = group.Key;
+                var latestMessage = group.First(); // Оскільки ми вже відсортували їх вище
+
+                // Перевіряємо, чи є хоча б одне непрочитане повідомлення, надіслане НАМ від ЦЬОГО контакту
+                var hasUnread = group.Any(m => m.SenderId == contactId && m.RecipientId == userId && !m.IsRead);
+
+                inbox.Add(new InboxItemDto
+                {
+                    OtherUserId = contactId,
+                    OtherUserName = contacts.ContainsKey(contactId) ? contacts[contactId] : "Unknown User",
+                    LastMessage = latestMessage.Content,
+                    LastMessageTimestamp = latestMessage.Timestamp,
+                    HasUnread = hasUnread
+                });
+            }
+
+            // Повертаємо список, відсортований за датою останнього повідомлення
+            return inbox.OrderByDescending(i => i.LastMessageTimestamp).ToList();
+        }
+
         public async Task<List<Message>> GetConversationHistory(int userId, int otherUserId)
         {
             // Fetch messages where the current user is either the sender or the recipient.

@@ -97,5 +97,6 @@ app.MapControllers();
 
 // 5. Map SignalR Hub
 app.MapHub<NotificationHub>("/notificationhub");
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();

@@ -60,6 +60,33 @@
 
     <div class="active-sections-placeholder">
         
+        <div id="messages-container" style="display: none; height: 100%;">
+            <div class="glass-card messages-layout">
+
+                <div class="inbox-pane">
+                    <h3 class="pane-title">Conversations</h3>
+                    <div id="inbox-list" class="inbox-list">
+                        <p class="placeholder-text text-center">Loading messages...</p>
+                    </div>
+                </div>
+
+                <div class="chat-pane">
+                    <div class="chat-header">
+                        <h3 id="active-chat-name">Select a conversation</h3>
+                    </div>
+
+                    <div id="chat-history" class="chat-history">
+                    </div>
+
+                    <div class="chat-input-area" style="display: none;" id="chat-input-area">
+                        <input type="text" id="chat-message-input" class="form-control" placeholder="Type a message..." autocomplete="off" />
+                        <button id="btn-send-message" class="btn-submit" style="width: auto; padding: 0 20px;">Send</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <div id="feed-container">
             <div class="glass-card feed-card">
                 <h3 id="feed-title">Welcome to the Community Feed</h3>
@@ -162,15 +189,18 @@
     <span class="close-modal">&times;</span>
     <img class="modal-content" id="modal-image">
 </div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-
+        
         const token = localStorage.getItem('token');
         if (!token) {
             window.location.href = '/Auth';
             return; 
         }
+
+ 
+        
 
         const feedContent = document.getElementById('feed-content');
         const paginationControls = document.getElementById('pagination-controls');
@@ -187,6 +217,25 @@
         const myPublicationsList = document.getElementById('my-publications-list');
         const btnSubNavs = document.querySelectorAll('.btn-sub-nav');
         const subSections = document.querySelectorAll('.sub-section');
+        let currentChatUserId = null;
+
+        const connection = new signalR.HubConnectionBuilder()
+        .withUrl(`${baseUrl}/chathub`, { accessTokenFactory: () => token })
+        .withAutomaticReconnect()
+        .build();
+
+
+        connection.on("ReceiveMessage", function (senderId, message) {
+        // If the user is currently looking at the chat with the sender, append it
+        if (currentChatUserId === senderId) {
+            const historyContainer = document.getElementById('chat-history');
+            historyContainer.innerHTML += `<div class="msg-bubble msg-received">${message}</div>`;
+            historyContainer.scrollTop = historyContainer.scrollHeight;
+        } else {
+            // Otherwise, reload the inbox to show the unread dot
+            loadInbox();
+        }
+    });
 
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
@@ -203,8 +252,13 @@
                     feedContainer.style.display = 'block';
                 } else if (section === 'Publications') {
                     publicationsContainer.style.display = 'block';
-                    loadMyPublications(); // Завантажуємо таблицю при відкритті
-                } else {
+                    loadMyPublications();
+                }
+                    else if (section === 'Messages') {
+                    document.getElementById('messages-container').style.display = 'block';
+                    loadInbox();
+                }
+                else {
                     placeholderContainer.style.display = 'flex';
                     placeholderTitle.textContent = section;
                 }
@@ -223,6 +277,105 @@
                 if (target === 'manage-pubs') loadMyPublications();
             });
         });
+
+            async function loadInbox() {
+        const token = localStorage.getItem('token');
+        const inboxList = document.getElementById('inbox-list');
+
+        try {
+            const response = await fetch(`${baseUrl}/api/Messaging/inbox`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                inboxList.innerHTML = '';
+
+                if (data.length === 0) {
+                    inboxList.innerHTML = '<p class="placeholder-text">No messages yet.</p>';
+                    return;
+                }
+
+                data.forEach(chat => {
+                    const isUnread = chat.hasUnread ? '<span class="unread-dot"></span>' : '';
+                    inboxList.innerHTML += `
+                        <div class="inbox-item" onclick="openChat(${chat.otherUserId}, '${chat.otherUserName}')">
+                            <strong>${chat.otherUserName}</strong> ${isUnread}
+                            <div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">Click to view</div>
+                        </div>
+                    `;
+                });
+            }
+        } catch (err) {
+            console.error('Error loading inbox:', err);
+        }
+    }
+
+        window.openChat = async function(otherUserId, otherUserName) {
+        currentChatUserId = otherUserId;
+        document.getElementById('active-chat-name').textContent = `Chat with ${otherUserName}`;
+        document.getElementById('chat-input-area').style.display = 'flex';
+
+        // Highlight active inbox item visually (optional DOM manipulation)
+
+        const token = localStorage.getItem('token');
+        const historyContainer = document.getElementById('chat-history');
+        historyContainer.innerHTML = '<div class="text-center">Loading...</div>';
+
+        try {
+            const response = await fetch(`${baseUrl}/api/Messaging/history/${otherUserId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const messages = await response.json();
+                historyContainer.innerHTML = '';
+
+                messages.forEach(msg => {
+                    const isSentByMe = msg.senderId !== otherUserId; // Adjust logic based on your DTO
+                    const bubbleClass = isSentByMe ? 'msg-sent' : 'msg-received';
+                    historyContainer.innerHTML += `<div class="msg-bubble ${bubbleClass}">${msg.content}</div>`;
+                });
+
+                // Scroll to bottom
+                historyContainer.scrollTop = historyContainer.scrollHeight;
+            }
+        } catch (err) {
+            console.error('Error loading history:', err);
+        }
+    };
+
+    // Send Message Logic
+    document.getElementById('btn-send-message').addEventListener('click', async () => {
+        if (!currentChatUserId) return;
+
+        const inputField = document.getElementById('chat-message-input');
+        const content = inputField.value.trim();
+        if (!content) return;
+
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch(`${baseUrl}/api/Messaging/chat?otherUserId=${currentChatUserId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ Content: content })
+            });
+
+            if (response.ok) {
+                // Append immediately to UI
+                const historyContainer = document.getElementById('chat-history');
+                historyContainer.innerHTML += `<div class="msg-bubble msg-sent">${content}</div>`;
+                historyContainer.scrollTop = historyContainer.scrollHeight;
+                inputField.value = '';
+            }
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
+    });
 
         // Завантаження таблиці публікацій
         async function loadMyPublications() {
@@ -557,7 +710,6 @@
         loadFeed(1);
     });
 </script>
-
 <style>
     :root {
         --glass-bg: rgba(255, 255, 255, 0.15);
@@ -879,4 +1031,105 @@
     .modal-form-content { background: var(--glass-bg); width: 400px; position: relative; }
     .close-edit-modal { position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }
     .close-edit-modal:hover { color: var(--error-color); }
+
+    /* --- Messages UI --- */
+    .messages-layout {
+        display: flex;
+        gap: 20px;
+        height: 600px;
+        padding: 20px;
+        text-align: left;
+    }
+
+    .inbox-pane {
+        flex: 0 0 250px;
+        border-right: 1px solid var(--glass-border);
+        padding-right: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chat-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pane-title {
+        margin-top: 0;
+        color: var(--accent-color);
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 10px;
+    }
+
+    .inbox-list {
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .inbox-item {
+        padding: 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        transition: background 0.2s;
+        border-radius: 8px;
+    }
+
+        .inbox-item:hover, .inbox-item.active {
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        .inbox-item .unread-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            margin-left: 5px;
+        }
+
+    .chat-history {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: rgba(0,0,0,0.1);
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }
+
+    .msg-bubble {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 15px;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        word-wrap: break-word;
+    }
+
+    .msg-sent {
+        background: var(--accent-color);
+        color: #000;
+        align-self: flex-end;
+        border-bottom-right-radius: 2px;
+    }
+
+    .msg-received {
+        background: var(--glass-bg);
+        color: var(--text-color);
+        align-self: flex-start;
+        border-bottom-left-radius: 2px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .chat-input-area {
+        display: flex;
+        gap: 10px;
+    }
+
+        .chat-input-area input {
+            flex: 1;
+        }
 </style>
