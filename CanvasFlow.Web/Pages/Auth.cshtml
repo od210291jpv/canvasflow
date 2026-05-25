@@ -1,6 +1,7 @@
 @page
 @model CanvasFlow.Web.Pages.AuthModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
 @{
     ViewData["Title"] = "Authentication";
 }
@@ -11,7 +12,7 @@
             <a class="tab-btn @(Model.IsLoginMode ? "active" : "")"
                asp-page="/Auth" asp-route-loginMode="true">Login</a>
 
-            <a class="tab-btn @(!Model.IsLoginMode ? "API_ERROR_REPLACE_ME" : "")"
+            <a class="tab-btn @(!Model.IsLoginMode ? "active" : "")"
                asp-page="/Auth" asp-route-loginMode="false">Register</a>
         </div>
 
@@ -25,16 +26,17 @@
 
             @if (Model.IsLoginMode)
             {
-                <form method="post" asp-page-handler="Login">
+                <form id="login-form">
                     <div class="form-group">
                         <label asp-for="LoginData.Username">Username</label>
-                        <input asp-for="LoginData.Username" class="form-control" placeholder="Enter username" required />
+                        <input asp-for="LoginData.Username" id="login-username" class="form-control" placeholder="Enter username" required />
                     </div>
                     <div class="form-group">
                         <label asp-for="LoginData.Password">Password</label>
-                        <input asp-for="LoginData.Password" type="password" class="form-control" placeholder="Enter password" required />
+                        <input asp-for="LoginData.Password" id="login-password" type="password" class="form-control" placeholder="Enter password" required />
                     </div>
                     <button type="submit" class="btn-submit">Login</button>
+                    <div id="login-status" class="alert" style="display: none; margin-top: 15px;"></div>
                 </form>
             }
             else
@@ -58,6 +60,62 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const loginForm = document.getElementById('login-form');
+        const baseUrl = 'https://localhost:5000'; // Переконайтеся, що це правильний порт вашого API
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); // Зупиняємо стандартну відправку сторінки
+                
+                const statusDiv = document.getElementById('login-status');
+                const usernameInput = document.getElementById('login-username').value;
+                const passwordInput = document.getElementById('login-password').value;
+
+                // Показуємо статус завантаження
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'alert';
+                statusDiv.textContent = 'Перевірка даних...';
+
+                try {
+                    const response = await fetch(`${baseUrl}/api/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: usernameInput,
+                            password: passwordInput
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.token) {
+                        // Зберігаємо JWT токен
+                        localStorage.setItem('token', data.token);
+                        document.cookie = `AuthToken=${data.token}; path=/; max-age=86400; SameSite=Strict`;
+                        
+                        statusDiv.textContent = 'Успішний вхід! Перенаправлення...';
+                        statusDiv.classList.add('alert-success');
+                        
+                        // Перенаправляємо на сторінку профілю
+                        window.location.href = '/Profile';
+                    } else {
+                        statusDiv.textContent = data.error || 'Помилка авторизації. Перевірте логін та пароль.';
+                        statusDiv.classList.add('alert-error');
+                    }
+                } catch (error) {
+                    console.error("Fetch error:", error);
+                    statusDiv.textContent = 'Помилка підключення до сервера.';
+                    statusDiv.classList.add('alert-error');
+                }
+            });
+        }
+    });
+</script>
 
 <style>
     :root {
@@ -117,26 +175,26 @@
         transition: all 0.3s ease;
     }
 
-    .tab-btn:hover {
-        color: rgba(255, 255, 255, 0.9);
-    }
+        .tab-btn:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
 
-    .tab-btn.active {
-        color: var(--text-color);
-        border-bottom: 2px solid var(--accent-color);
-    }
+        .tab-btn.active {
+            color: var(--text-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
 
     .form-group {
         margin-bottom: 20px;
         text-align: left;
     }
 
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 0.9rem;
-        opacity: 0.8;
-    }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
 
     .form-control {
         width: 100%;
@@ -150,13 +208,14 @@
         transition: border 0.3s ease;
     }
 
-    .form-control::placeholder {
-        color: rgba(255, 255, 255, 0.5);
-    }
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
 
-    .form-control:focus {
-        border-color: var(--accent/accent-color);
-    }
+        .form-control:focus {
+            /* Виправлено помилку в змінній CSS, яка була у вашому коді */
+            border-color: var(--accent-color);
+        }
 
     .btn-submit {
         width: 100%;
@@ -171,10 +230,10 @@
         transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
-    .btn-submit:hover {
-        opacity: 0.9;
-        transform: translateY(-2px);
-    }
+        .btn-submit:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
 
     .alert {
         padding: 10px;
@@ -187,10 +246,12 @@
     .alert-error {
         background: rgba(255, 0, 0, 0.2);
         border: 1px solid rgba(255, 0, 0, 0.3);
+        color: #ff4b2b; /* Додано колір тексту для кращої видимості */
     }
 
     .alert-success {
         background: rgba(0, 255, 0, 0.2);
         border: 1px solid rgba(0, 255, 0, 0.3);
+        color: #00ff00; /* Додано колір тексту для кращої видимості */
     }
 </style>

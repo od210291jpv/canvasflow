@@ -52,7 +52,7 @@
 
             <div class="profile-actions">
                 <form method="post" asp-page-handler="Logout">
-                    <button type="submit" class="btn-logout">Logout</button>
+                   <button type="submit" id="btn-logout" class="btn-logout">Logout</button>
                 </form>
             </div>
         </div>
@@ -78,6 +78,83 @@
             </div>
         </div>
 
+        <div id="publications-container" style="display: none;">
+        <div class="glass-card publications-card">
+            <h3 id="publications-title">Мої публікації</h3>
+        
+            <div class="sub-nav-links">
+                <button class="btn-sub-nav active" data-target="manage-pubs">Управління публікаціями</button>
+                <button class="btn-sub-nav" data-target="add-pub">Додати нову публікацію</button>
+            </div>
+
+            <div id="manage-pubs" class="sub-section active">
+                <div class="table-responsive">
+                    <table class="publications-table">
+                        <thead>
+                            <tr>
+                                <th>Зображення</th>
+                                <th>Назва</th>
+                                <th>Дата</th>
+                                <th>Лайки</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="my-publications-list">
+                            <tr><td colspan="5" class="text-center">Завантаження...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="add-pub" class="sub-section" style="display: none;">
+                <form id="add-publication-form" class="custom-form">
+                    <div class="form-group">
+                        <label>Назва</label>
+                        <input type="text" id="pub-title" required class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Опис</label>
+                        <textarea id="pub-desc" rows="3" class="form-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Медіафайл</label>
+                        <input type="file" id="pub-file" accept="image/*,video/*,.gif" required class="form-control" />
+                    </div>
+                    <div class="form-group">
+                        <label>Теги (через кому)</label>
+                        <input type="text" id="pub-tags" placeholder="art, AI, landscape" class="form-control" />
+                    </div>
+                    <button type="submit" class="btn-submit">Опублікувати</button>
+                    <div id="upload-status" class="status-message"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="media-modal">
+        <div class="glass-card modal-form-content">
+            <span class="close-edit-modal">&times;</span>
+            <h3>Редагувати публікацію</h3>
+            <form id="edit-publication-form" class="custom-form">
+                <input type="hidden" id="edit-pub-id" />
+                <div class="form-group">
+                    <label>Назва</label>
+                    <input type="text" id="edit-pub-title" required class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Опис</label>
+                    <textarea id="edit-pub-desc" rows="3" class="form-control"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Теги (через кому)</label>
+                    <input type="text" id="edit-pub-tags" class="form-control" />
+                </div>
+                <button type="submit" class="btn-submit">Зберегти зміни</button>
+                <div id="edit-status" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+
     </div>
 </div>
 
@@ -88,6 +165,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/Auth';
+            return; 
+        }
+
         const feedContent = document.getElementById('feed-content');
         const paginationControls = document.getElementById('pagination-controls');
         const feedTitle = document.getElementById('feed-title');
@@ -99,25 +183,247 @@
         const placeholderContainer = document.getElementById('generic-placeholder');
         const placeholderTitle = document.getElementById('placeholder-title');
 
+        const publicationsContainer = document.getElementById('publications-container');
+        const myPublicationsList = document.getElementById('my-publications-list');
+        const btnSubNavs = document.querySelectorAll('.btn-sub-nav');
+        const subSections = document.querySelectorAll('.sub-section');
+
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                
-                // Update active link styling
                 navLinks.forEach(l => l.classList.remove('active-link'));
                 link.classList.add('active-link');
-
                 const section = link.getAttribute('data-section');
+
+                feedContainer.style.display = 'none';
+                placeholderContainer.style.display = 'none';
+                publicationsContainer.style.display = 'none';
 
                 if (section === 'Feed') {
                     feedContainer.style.display = 'block';
-                    placeholderContainer.style.display = 'none';
+                } else if (section === 'Publications') {
+                    publicationsContainer.style.display = 'block';
+                    loadMyPublications(); // Завантажуємо таблицю при відкритті
                 } else {
-                    feedContainer.style.display = 'none';
-                    placeholderContainer.style.display = 'block';
+                    placeholderContainer.style.display = 'flex';
                     placeholderTitle.textContent = section;
                 }
             });
+        });
+
+        btnSubNavs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btnSubNavs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const target = btn.getAttribute('data-target');
+        
+                subSections.forEach(sec => sec.style.display = 'none');
+                document.getElementById(target).style.display = 'block';
+        
+                if (target === 'manage-pubs') loadMyPublications();
+            });
+        });
+
+        // Завантаження таблиці публікацій
+        async function loadMyPublications() {
+            myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">Завантаження...</td></tr>';
+            // Для отримання токена, якщо ви використовуєте JWT (додайте в headers). Якщо Cookie - fetch передає їх автоматично.
+            try {
+                const response = await fetch(`${baseUrl}/api/Content/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, // <--- ОСЬ ТУТ МИ ВІДПРАВЛЯЄМО ТОКЕН
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/Auth';
+                    return;
+                }
+
+                const data = await response.json();
+        
+                if (response.ok && Array.isArray(data)) {
+                    myPublicationsList.innerHTML = '';
+                    if (data.length === 0) {
+                        myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">У вас ще немає публікацій.</td></tr>';
+                        return;
+                    }
+                    data.forEach(item => {
+                        myPublicationsList.innerHTML += `
+                            <tr>
+                                <td><img src="${baseUrl}${item.imageUrl || item.ImageUrl}" alt="thumb"></td>
+                                <td>${item.title || item.Title}</td>
+                                <td>${new Date(item.uploadDate || item.UploadDate).toLocaleDateString()}</td>
+                                <td>${item.likeCount || item.LikeCount}</td>
+                                <td>
+                                    <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
+                                    <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    myPublicationsList.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка: ${data.message || data.error || 'Бекенд ще не повертає масив даних.'}</td></tr>`;
+                }
+            } catch (error) {
+                myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка підключення.</td></tr>';
+            }
+        }
+
+        // Додавання нової публікації (Create)
+        document.getElementById('add-publication-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.textContent = 'Завантаження...';
+            statusDiv.className = 'status-message';
+            statusDiv.style.color = '#fff';
+
+            const token = localStorage.getItem('token');
+                if (!token) {
+                    statusDiv.textContent = 'Помилка: Ви не авторизовані (відсутній токен).';
+                    statusDiv.style.color = 'var(--error-color)';
+                    return;
+                }
+
+            const formData = new FormData();
+            formData.append('Title', document.getElementById('pub-title').value);
+            formData.append('Description', document.getElementById('pub-desc').value);
+            formData.append('File', document.getElementById('pub-file').files[0]);
+    
+            // Форматування тегів
+            const tags = document.getElementById('pub-tags').value;
+            if(tags) {
+                tags.split(',').forEach(tag => formData.append('Tags', tag.trim()));
+            }
+
+            try {
+                const response = await fetch(`${baseUrl}/api/Content/upload`, {
+                    method: 'POST',
+                    headers: {
+                        // 2. ДОДАЄМО ТОКЕН СЮДИ
+                        'Authorization': `Bearer ${token}` 
+                        // ВАЖЛИВО: Не додавайте 'Content-Type': 'multipart/form-data'! 
+                        // Браузер зробить це автоматично разом з потрібним boundary.
+                    },
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusDiv.textContent = 'Успішно опубліковано!';
+                    statusDiv.style.color = 'var(--accent-color)';
+                    document.getElementById('add-publication-form').reset();
+                    // Повертаємось на вкладку управління
+                    document.querySelector('[data-target="manage-pubs"]').click(); 
+                } else {
+                    statusDiv.textContent = `Помилка: ${result.error}`;
+                    statusDiv.style.color = 'var(--error-color)';
+                }
+            } catch (error) {
+                statusDiv.textContent = 'Сталася помилка при завантаженні.';
+                statusDiv.style.color = 'var(--error-color)';
+            }
+        });
+
+        // Видалення (Delete)
+        window.deletePublication = async function(id) {
+            if(!confirm('Ви впевнені, що хочете видалити цю публікацію?')) return;
+    
+            const token = localStorage.getItem('token'); // Отримуємо токен
+    
+            try {
+                const response = await fetch(`${baseUrl}/api/Content/delete/${id}`, { 
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}` // Додаємо токен
+                    }
+                });
+                if (response.ok) {
+                    loadMyPublications(); // Оновлюємо таблицю
+                } else {
+                    alert('Помилка видалення. Перевірте консоль.');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Редагування (Update) - Модальне вікно
+        const editModal = document.getElementById('edit-modal');
+        document.querySelector('.close-edit-modal').addEventListener('click', () => editModal.style.display = 'none');
+
+            window.openEditModal = async function(id) {
+                const token = localStorage.getItem('token');
+
+                try {
+                    // ВИПРАВЛЕНО: Змінено метод з 'PUT' на 'GET'
+                    // Ендпоінт має бути таким же, як і для отримання однієї публікації (наприклад, api/Content/get/{id})
+                    const response = await fetch(`${baseUrl}/api/Content/get/${id}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Заповнення полів форми
+                        document.getElementById('edit-pub-id').value = data.id || data.Id;
+                        document.getElementById('edit-pub-title').value = data.title || data.Title;
+                        document.getElementById('edit-pub-desc').value = data.description || data.Description;
+
+                        const tags = data.tags || data.Tags || [];
+                        document.getElementById('edit-pub-tags').value = tags.map(t => t.name || t.Name || t).join(', ');
+
+                        // Відкриваємо модальне вікно
+                        document.getElementById('edit-modal').style.display = 'flex';
+                    } else {
+                        console.error('Server error:', data);
+                        alert('Не вдалося завантажити дані публікації.');
+                    }
+                } catch(err) {
+                    console.error(err);
+                    alert('Помилка завантаження даних. Перевірте з\'єднання.');
+                }
+            }
+
+        document.getElementById('edit-publication-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-pub-id').value;
+            const statusDiv = document.getElementById('edit-status');
+            const token = localStorage.getItem('token');
+            statusDiv.textContent = 'Збереження...';
+
+            const payload = {
+                Title: document.getElementById('edit-pub-title').value,
+                Description: document.getElementById('edit-pub-desc').value,
+                //ImageUrl: '', // Зображення зазвичай не оновлюється тут, або потрібна інша логіка для файлів
+                Tags: document.getElementById('edit-pub-tags').value.split(',').map(t => t.trim()).filter(t => t)
+            };
+
+            try {
+                const response = await fetch(`${baseUrl}/api/Content/edit/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+
+                    body: JSON.stringify(payload)
+                });
+        
+                if(response.ok) {
+                    editModal.style.display = 'none';
+                    loadMyPublications();
+                } else {
+                    const res = await response.json();
+                    statusDiv.textContent = `Помилка: ${res.error}`;
+                }
+            } catch(err) { statusDiv.textContent = 'Помилка мережі'; }
         });
 
         // Fullscreen Modal Logic
@@ -225,6 +531,11 @@
 
             paginationControls.innerHTML = paginationHtml;
         }
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            window.location.href = '/Auth';
+        });
 
         paginationControls.addEventListener('click', (e) => {
             if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
@@ -530,4 +841,42 @@
         .profile-card-wrapper { flex: auto; max-width: 100%; position: static; }
         .feed-media-img { max-height: 300px; }
     }
+
+        /* --- Publications Sub-menu & Sections --- */
+    .sub-nav-links { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
+    .btn-sub-nav {
+        background: transparent; border: 1px solid var(--glass-border); color: var(--text-color);
+        padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s;
+    }
+    .btn-sub-nav.active, .btn-sub-nav:hover { background: var(--accent-color); color: #000; border-color: var(--accent-color); }
+
+    /* --- Table Styles --- */
+    .table-responsive { overflow-x: auto; }
+    .publications-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .publications-table th, .publications-table td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .publications-table th { color: var(--accent-color); font-weight: bold; }
+    .publications-table img { max-width: 60px; border-radius: 5px; }
+    .action-btn { background: transparent; border: 1px solid; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px; color: #fff;}
+    .btn-edit { border-color: #f39c12; } .btn-edit:hover { background: #f39c12; color: #000; }
+    .btn-delete { border-color: var(--error-color); } .btn-delete:hover { background: var(--error-color); color: #fff; }
+
+    /* --- Forms --- */
+    .custom-form { text-align: left; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--accent-color); }
+    .form-control { 
+        width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); 
+        border-radius: 8px; color: #fff; box-sizing: border-box; 
+    }
+    .btn-submit { 
+        width: 100%; padding: 12px; background: var(--accent-color); border: none; 
+        border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; font-size: 1.1rem; 
+    }
+    .btn-submit:hover { opacity: 0.9; }
+    .status-message { margin-top: 15px; text-align: center; font-weight: bold; }
+
+    /* --- Edit Modal Override --- */
+    .modal-form-content { background: var(--glass-bg); width: 400px; position: relative; }
+    .close-edit-modal { position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #fff; }
+    .close-edit-modal:hover { color: var(--error-color); }
 </style>

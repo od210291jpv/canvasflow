@@ -8,8 +8,7 @@ namespace CanvasFlow.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [AllowAnonymous]
-    //[Authorize]
+    [Authorize]
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
@@ -122,7 +121,6 @@ namespace CanvasFlow.Api.Controllers
                     contentId, 
                     model.Title, 
                     model.Description, 
-                    model.ImageUrl, 
                     model.Tags);
                 return Ok(updatedContent);
             }
@@ -149,12 +147,27 @@ namespace CanvasFlow.Api.Controllers
             }
             return NotFound(new { error = "Content not found or unauthorized to delete." });
         }
-        
-        // GET: api/Content/me
+
         [HttpGet("me")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetMyContent()
         {
-            return Ok(new { message = "Successfully retrieved your content list (Implementation pending)." });
+            // ŒÚËÏÛ∫ÏÓ ID ÍÓËÒÚÛ‚‡˜‡
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
+            Console.WriteLine($"\n---> ÿ” ¿ﬁ œ”¡À≤ ¿÷≤Ø ƒÀﬂ USER ID: {userId} <--- \n");
+            try
+            {
+                var myContent = await _contentService.GetContentByUserIdAsync(userId);
+                return Ok(myContent); // Ã‡∫ ÔÓ‚ÂÚ‡ÚË List<Content>
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 

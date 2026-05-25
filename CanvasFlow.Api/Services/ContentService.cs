@@ -89,7 +89,7 @@ namespace CanvasFlow.Api.Services
             return true;
         }
 
-        public async Task<Content> UpdateContentAsync(int contentId, string title, string description, string imageUrl, List<string> tags)
+        public async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)
         {
             var content = await _context.Contents
                 .Include(c => c.Tags)
@@ -100,14 +100,8 @@ namespace CanvasFlow.Api.Services
                 throw new KeyNotFoundException("Content not found.");
             }
 
-            // TODO:      userId  :
-            // if (content.UserId != userId) throw new UnauthorizedAccessException();
-
             content.Title = title;
             content.Description = description;
-            content.ImageUrl = imageUrl; 
-
-            //  
             content.Tags.Clear();
 
             if (tags != null && tags.Any())
@@ -206,6 +200,16 @@ namespace CanvasFlow.Api.Services
             );
 
             return content;
+        }
+
+        public async Task<List<Content>> GetContentByUserIdAsync(int userId)
+        {
+            var result = await _context.Contents
+                .Include(c => c.Tags)
+                .Where(c => c.UserId == userId && !c.IsDeleted)
+                .OrderByDescending(c => c.UploadDate)
+                .ToListAsync();
+            return result;
         }
 
         public async Task<bool> DeleteContentAsync(int adminUserId, int contentId)

@@ -1,10 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace CanvasFlow.Web.Pages
 {
+    [AllowAnonymous]
     public class ProfileModel : PageModel
     {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -20,7 +20,7 @@ namespace CanvasFlow.Web.Pages
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var token = HttpContext.Session.GetString("AuthToken");
+            var token = HttpContext.Request.Cookies["AuthToken"];
 
             if (string.IsNullOrEmpty(token))
             {
@@ -44,7 +44,7 @@ namespace CanvasFlow.Web.Pages
                     // Clear session if unauthorized
                     if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                     {
-                        HttpContext.Session.Remove("AuthToken");
+                        Response.Cookies.Delete("AuthToken");
                     }
                 }
             }
@@ -59,7 +59,7 @@ namespace CanvasFlow.Web.Pages
 
         public async Task<IActionResult> OnPostLogoutAsync()
         {
-            HttpContext.Session.Remove("AuthToken");
+            Response.Cookies.Delete("AuthToken");
             return RedirectToPage("/Auth");
         }
     }
