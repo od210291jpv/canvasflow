@@ -206,6 +206,7 @@
         const paginationControls = document.getElementById('pagination-controls');
         const feedTitle = document.getElementById('feed-title');
         const baseUrl = 'https://localhost:5000';
+        const currentUserId = @(Model.UserProfile?.Id ?? 0);
 
         // Navigation Logic
         const navLinks = document.querySelectorAll('.nav-link');
@@ -224,6 +225,7 @@
         .withAutomaticReconnect()
         .build();
 
+        connection.start().catch(err => console.error("SignalR Connection Error: ", err));
 
         connection.on("ReceiveMessage", function (senderId, message) {
         // If the user is currently looking at the chat with the sender, append it
@@ -236,6 +238,16 @@
             loadInbox();
         }
     });
+
+        window.startChat = function(userId, userName) {
+            const messagesLink = document.querySelector('[data-section="Messages"]');
+            if (messagesLink) {
+                messagesLink.click();
+                setTimeout(() => {
+                    openChat(userId, userName);
+                }, 100);
+            }
+        };
 
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
@@ -339,6 +351,9 @@
 
                 // Scroll to bottom
                 historyContainer.scrollTop = historyContainer.scrollHeight;
+
+                // Refresh inbox to update unread status
+                loadInbox();
             }
         } catch (err) {
             console.error('Error loading history:', err);
@@ -371,6 +386,7 @@
                 historyContainer.innerHTML += `<div class="msg-bubble msg-sent">${content}</div>`;
                 historyContainer.scrollTop = historyContainer.scrollHeight;
                 inputField.value = '';
+                loadInbox();
             }
         } catch (err) {
             console.error('Error sending message:', err);
@@ -633,7 +649,12 @@
                 const title = item.Title || item.title || 'Untitled';
                 const uploadDate = item.UploadDate || item.uploadDate;
                 const author = (item.User && item.User.Username) || (item.user && item.user.username) || 'Unknown';
+                const authorId = item.UserId || item.userId;
                 const authorInitial = author.charAt(0).toUpperCase();
+
+                const messageBtn = (authorId !== currentUserId) 
+                    ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">💬 Message</button>` 
+                    : '';
 
                 html += `
                     <div class="feed-item">
@@ -652,6 +673,7 @@
                         </div>
                         <div class="feed-actions">
                             <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
+                            ${messageBtn}
                         </div>
                     </div>
                 `;
@@ -928,6 +950,12 @@
         color: var(--text-color); border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s ease;
     }
     .btn-like:hover { background: rgba(255, 75, 43, 0.2); border-color: var(--error-color); color: #fff; }
+
+    .btn-message {
+        padding: 8px 15px; background: var(--accent-color); border: 1px solid var(--accent-color);
+        color: #000; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s ease;
+    }
+    .btn-message:hover { opacity: 0.8; }
 
     /* --- Fullscreen Modal Styles --- */
     .media-modal {
