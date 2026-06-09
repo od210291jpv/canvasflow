@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  name: 'MyPool' # Replace this with your actual pool name
+  name: 'WindowsPool' # Replace this with your actual pool name
 
 variables:
   DOCKER_COMPOSE_FILE: 'docker-compose.yml'
