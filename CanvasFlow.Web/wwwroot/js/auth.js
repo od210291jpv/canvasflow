@@ -1,7 +1,7 @@
 // Auth Page Scripts
 document.addEventListener('DOMContentLoaded', function () {
     const loginForm = document.getElementById('login-form');
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = 'http://192.168.88.68:5000';
 
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
