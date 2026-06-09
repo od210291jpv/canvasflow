@@ -43,15 +43,12 @@ builder.Services.AddAuthorization();
 // 2.5 Configure CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp",
-        policy =>
-        {
-            policy
-            .WithOrigins("http://localhost:3000")
-            .WithOrigins("https://localhost:57825")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowLocalNetwork", policy =>
+    {
+        policy.WithOrigins("http://192.168.88.68") // Вкажіть точний origin вашого фронтенду
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 // 3. Register Services
@@ -89,7 +86,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowReactApp");
+app.UseCors("AllowLocalNetwork");
 app.UseStaticFiles();
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
