@@ -12,14 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// 1. Configure the Database Context (MS SQL)
+// 1. Configure the Database Context (MySQL/MariaDB)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
-        ServerVersion.AutoDetect(connectionString) // Pomelo ����������� ��������� ����� ���� MariaDB/MySQL
+        ServerVersion.AutoDetect(connectionString)
     ));
 
-// 2. Configure JWT Authentication
+// 2. Configure JWT Authentication (З ПІДТРИМКОЮ SIGNALR)
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "ThisIsASuperSecretKeyForTesting123!";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CanvasFlow";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CanvasFlowClients";
@@ -36,18 +36,37 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience
         };
+
+        // КРИТИЧНО ДЛЯ SIGNALR: Навчаємо бекенд читати токен з URL (query string)
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                // Перевіряємо, чи запит йде до хабів
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    (path.StartsWithSegments("/chathub") || path.StartsWithSegments("/notificationhub")))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
 
-// 2.5 Configure CORS
+// 2.5 Configure CORS (Максимально відкритий, сумісний з AllowCredentials)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => true) // Динамічно дозволяє будь-який Origin (замінює AllowAnyOrigin)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();                // Дозволяє передачу кукі/токенів для SignalR
     });
 });
 
@@ -62,13 +81,14 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 // -----------------------------
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -77,22 +97,23 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
-
-app.UseCors("AllowAll");
 app.UseStaticFiles();
-app.UseAuthentication(); // Must come before UseAuthorization
-app.UseAuthorization();
+
+// 5. Middleware Pipeline (Порядок має критичне значення!)
+app.UseRouting(); // 1. Спочатку визначаємо маршрут
+
+app.UseCors("AllowAll"); // 2. Потім застосовуємо CORS до цього маршруту
+
+app.UseAuthentication(); // 3. Перевіряємо, хто прийшов
+app.UseAuthorization();  // 4. Перевіряємо, чи має він права доступу
+
 app.MapControllers();
 
-// 5. Map SignalR Hub
+// 6. Map SignalR Hubs
 app.MapHub<NotificationHub>("/notificationhub");
 app.MapHub<ChatHub>("/chathub");
 
