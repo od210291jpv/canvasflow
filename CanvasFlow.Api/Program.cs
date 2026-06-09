@@ -43,9 +43,9 @@ builder.Services.AddAuthorization();
 // 2.5 Configure CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowLocalNetwork", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://192.168.88.68") // Вкажіть точний origin вашого фронтенду
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -86,7 +86,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowLocalNetwork");
+app.UseCors("AllowAll");
 app.UseStaticFiles();
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
