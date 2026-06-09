@@ -7,7 +7,7 @@ builder.Services.AddSession(); // Enable Session
 
 builder.Services.AddHttpClient("ApiUrl", client =>
 {
-    client.BaseAddress = new Uri("https://192.168.88.68:5000/"); 
+    client.BaseAddress = new Uri("http://192.168.88.68:5000/"); 
 });
 
 var app = builder.Build();
