@@ -1,25 +1,23 @@
-# Build Stage
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy csproj and restore dependencies
+# Copy project files first to leverage Docker cache for dependencies
 COPY ["CanvasFlow.Web/CanvasFlow.Web.csproj", "CanvasFlow.Web/"]
-COPY ["CanvasFlow.Api/CanvasFlow.Api.csproj", "CanvasFlow.Api/"]
 RUN dotnet restore "CanvasFlow.Web/CanvasFlow.Web.csproj"
 
-# Copy everything else and build
+# Copy the rest of the source code and build
 COPY . .
 WORKDIR "/src/CanvasFlow.Web"
 RUN dotnet build "CanvasFlow.Web.csproj" -c Release -o /app/build
 
-# Publish Stage
+# Stage 2: Publish
 FROM build AS publish
 RUN dotnet publish "CanvasFlow.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Final Runtime Stage
+# Stage 3: Final Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
+EXPOSE 80
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "CanvasFlow.Web.dll"]

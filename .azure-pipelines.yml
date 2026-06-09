@@ -1,0 +1,20 @@
+trigger:
+- main
+
+pool:
+  name: 'MyPool' # Replace this with your actual pool name
+
+variables:
+  DOCKER_COMPOSE_FILE: 'docker-compose.yml'
+
+jobs:
+- job: Deploy
+  displayName: 'Deploy to Local Docker'
+  steps:
+  - script: |
+      docker compose -f $(DOCKER_COMPOSE_FILE) up --build -d
+    displayName: 'Build and Start Containers'
+
+  - script: |
+      docker image prune -f
+    displayName: 'Cleanup Dangling Images'
