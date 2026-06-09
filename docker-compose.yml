@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: CanvasFlow.Api/Dockerfile
+    image: canvasflow-api
+    container_name: canvasflow-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: CanvasFlow.Web/Dockerfile
+    image: canvasflow-web
+    container_name: canvasflow-web
+    ports:
+      - "80:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ApiBaseUrl=http://api:8080
+    depends_on:
+      - api
+    restart: unless-stopped

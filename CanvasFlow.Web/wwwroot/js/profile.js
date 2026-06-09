@@ -9,7 +9,7 @@
     const feedContent = document.getElementById('feed-content');
     const paginationControls = document.getElementById('pagination-controls');
     const feedTitle = document.getElementById('feed-title');
-    const baseUrl = 'https://localhost:5000';
+    const baseUrl = 'http://localhost:5000';
    
     // Зчитуємо значення з data-атрибута (воно завжди буде рядком, тому перетворюємо в число)
     const currentUserId = parseInt(feedContent.dataset.userId, 10);
