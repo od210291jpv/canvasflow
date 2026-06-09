@@ -94,6 +94,7 @@ builder.Services.AddSwaggerGen();
 
 // 4. Configure SignalR
 builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
