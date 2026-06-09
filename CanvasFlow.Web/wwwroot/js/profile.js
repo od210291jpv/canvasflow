@@ -234,18 +234,30 @@
                     return;
                 }
                 data.forEach(item => {
+                    // Додаємо розумну обробку URL, як у стрічці новин
+                    const rawImageUrl = item.imageUrl || item.ImageUrl || '';
+                    let finalImageUrl = '';
+
+                    if (rawImageUrl.startsWith('http')) {
+                        finalImageUrl = rawImageUrl;
+                    } else {
+                        const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
+                        const cleanRawUrl = rawImageUrl.replace(/^\//, '');
+                        finalImageUrl = `${cleanBaseUrl}/${cleanRawUrl}`;
+                    }
+
                     myPublicationsList.innerHTML += `
-                            <tr>
-                                <td><img src="${baseUrl}${item.imageUrl || item.ImageUrl}" alt="thumb"></td>
-                                <td>${item.title || item.Title}</td>
-                                <td>${new Date(item.uploadDate || item.UploadDate).toLocaleDateString()}</td>
-                                <td>${item.likeCount || item.LikeCount}</td>
-                                <td>
-                                    <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
-                                    <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
-                                </td>
-                            </tr>
-                        `;
+                        <tr>
+                            <td><img src="${finalImageUrl}" alt="thumb"></td>
+                            <td>${item.title || item.Title}</td>
+                            <td>${new Date(item.uploadDate || item.UploadDate).toLocaleDateString()}</td>
+                            <td>${item.likeCount || item.LikeCount}</td>
+                            <td>
+                                <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
+                                <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
+                            </td>
+                        </tr>
+                    `;
                 });
             } else {
                 myPublicationsList.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка: ${data.message || data.error || 'Бекенд ще не повертає масив даних.'}</td></tr>`;
@@ -457,7 +469,6 @@
     function displayFeed(content) {
         let html = '';
         content.forEach(item => {
-            // Determine description property (handling different cases)
             const desc = item.Description || item.description || '';
             const title = item.Title || item.title || 'Untitled';
             const uploadDate = item.UploadDate || item.uploadDate;
@@ -465,31 +476,42 @@
             const authorId = item.UserId || item.userId;
             const authorInitial = author.charAt(0).toUpperCase();
 
+            const rawImageUrl = item.imageUrl || item.ImageUrl || '';
+            let finalImageUrl = '';
+
+            if (rawImageUrl.startsWith('http')) {
+                finalImageUrl = rawImageUrl;
+            } else {
+                const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
+                const cleanRawUrl = rawImageUrl.replace(/^\//, '');
+                finalImageUrl = `${cleanBaseUrl}/${cleanRawUrl}`;
+            }
+
             const messageBtn = (authorId !== currentUserId)
                 ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">💬 Message</button>`
                 : '';
 
             html += `
-                    <div class="feed-item">
-                        <div class="feed-header">
-                            <div class="feed-avatar-placeholder">${authorInitial}</div>
-                            <div class="feed-info">
-                                <h4 class="feed-title">${title}</h4>
-                                <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                        <div class="feed-media">
-                            <img src="${baseUrl}/${item.imageUrl || item.ImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
-                        </div>
-                        <div class="feed-body">
-                            <p>${desc}</p>
-                        </div>
-                        <div class="feed-actions">
-                            <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
-                            ${messageBtn}
-                        </div>
+            <div class="feed-item">
+                <div class="feed-header">
+                    <div class="feed-avatar-placeholder">${authorInitial}</div>
+                    <div class="feed-info">
+                        <h4 class="feed-title">${title}</h4>
+                        <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
                     </div>
-                `;
+                </div>
+                <div class="feed-media">
+                    <img src="${finalImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
+                </div>
+                <div class="feed-body">
+                    <p>${desc}</p>
+                </div>
+                <div class="feed-actions">
+                    <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
+                    ${messageBtn}
+                </div>
+            </div>
+        `;
         });
         feedContent.innerHTML = html;
     }
