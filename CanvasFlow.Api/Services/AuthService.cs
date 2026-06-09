@@ -1,8 +1,13 @@
 // Services/AuthService.cs
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 using CanvasFlow.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -13,31 +18,63 @@ namespace CanvasFlow.Api.Services
         private readonly ApplicationDbContext _context;
         private readonly IAuditService _auditService;
         private readonly INotificationService _notificationService;
+        private readonly IConfiguration _configuration;
 
-        public AuthService(ApplicationDbContext context, IAuditService auditService, INotificationService notificationService)
+        public AuthService(ApplicationDbContext context, IAuditService auditService, INotificationService notificationService, IConfiguration configuration)
         {
             _context = context;
             _auditService = auditService;
             _notificationService = notificationService;
+            _configuration = configuration;
         }
 
         public async Task<string> Login(string username, string password)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username && !u.IsDeleted);
 
-            if (user == null || user.AccountStatus != "Active")
+            if (user == null || user.AccountStatus != UserStatus.Active)
             {
                 throw new UnauthorizedAccessException("Invalid credentials or account is inactive.");
             }
 
-            // Basic password check (In production, use proper hashing/comparison)
             if (user.PasswordHash != HashPassword(password))
             {
                 throw new UnauthorizedAccessException("Invalid credentials.");
             }
 
-            // Generate and return JWT token (Implementation omitted for brevity, assume successful token generation)
-            return "fake_jwt_token"; 
+            return GenerateJwtToken(user);
+        }
+
+        public async Task<User?> GetUserById(int userId)
+        {
+            return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+        }
+
+        private string GenerateJwtToken(User user)
+        {
+            var jwtKey = _configuration["Jwt:Key"] ?? "ThisIsASuperSecretKeyForTesting123!";
+            var jwtIssuer = _configuration["Jwt:Issuer"] ?? "CanvasFlow";
+            var jwtAudience = _configuration["Jwt:Audience"] ?? "CanvasFlowClients";
+
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("sub", user.Id.ToString()) // Add sub for compatibility
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: DateTime.Now.AddDays(1),
+                signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         public async Task<User> RegisterUser(string username, string email, string password)
@@ -54,7 +91,7 @@ namespace CanvasFlow.Api.Services
                 Email = email,
                 PasswordHash = HashPassword(password),
                 Role = "User",
-                AccountStatus = "Pending" // New users start as Pending
+                AccountStatus = UserStatus.Pending // New users start as Pending
             };
 
             _context.Users.Add(newUser);
@@ -66,7 +103,7 @@ namespace CanvasFlow.Api.Services
             return newUser;
         }
 
-        public async Task<User> UpdateUserStatus(int adminUserId, int targetUserId, string newStatus)
+        public async Task<User> UpdateUserStatus(int adminUserId, int targetUserId, UserStatus newStatus)
         {
             var user = await _context.Users.FindAsync(targetUserId);
             if (user == null)
@@ -74,22 +111,22 @@ namespace CanvasFlow.Api.Services
                 throw new KeyNotFoundException("User not found.");
             }
 
-            if (user.Role != "Admin")
+            // Check if the performing user is an admin
+            var adminUser = await _context.Users.FindAsync(adminUserId);
+            if (adminUser == null || adminUser.Role != "Admin")
             {
                 throw new UnauthorizedAccessException("Only Admins can change user status.");
             }
 
-            // Logic to prevent status downgrade (e.g., cannot go from Blocked to Pending)
-            if (user.AccountStatus == "Blocked" && newStatus != "Blocked")
+            if (user.AccountStatus == UserStatus.Active && newStatus == UserStatus.Pending)
             {
-                throw new InvalidOperationException("Cannot reactivate a user without manual review.");
+                throw new InvalidOperationException("Cannot revert an active user to pending.");
             }
 
             user.AccountStatus = newStatus;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-            // Audit the change
             await _auditService.LogActionAsync(adminUserId, $"User Status Changed to {newStatus}", "User", targetUserId, $"Status changed from {user.AccountStatus} to {newStatus}");
 
             return user;
@@ -97,7 +134,7 @@ namespace CanvasFlow.Api.Services
 
         public async Task<User> BlockUser(int adminUserId, int targetUserId)
         {
-            return await UpdateUserStatus(adminUserId, targetUserId, "Blocked");
+            return await UpdateUserStatus(adminUserId, targetUserId, UserStatus.Blocked);
         }
 
         public async Task SendAdminMessage(int adminUserId, int recipientId, string content)

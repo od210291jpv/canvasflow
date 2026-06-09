@@ -1,6 +1,7 @@
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CanvasFlow.Api.Services
 {
@@ -24,16 +25,16 @@ namespace CanvasFlow.Api.Services
 
         public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize)
         {
-            // Валідація пагінації
+            //  
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100; // Захист від занадто великих запитів
+            if (pageSize > 100) pageSize = 100; //     
 
             return await _context.Contents
-                .Include(c => c.User) // Завантажуємо автора
-                .Include(c => c.Tags) // Завантажуємо теги
-                .Where(c => !c.IsDeleted && c.IsPublished) // Тільки опублікований і не видалений контент
-                                                           // .OrderByDescending(c => c.CreatedAt) // Розкоментуйте, якщо є поле CreatedAt
+                .Include(c => c.User) //  
+                .Include(c => c.Tags) //  
+                .Where(c => !c.IsDeleted && c.IsPublished) // Ті     
+                                                           // .OrderByDescending(c => c.CreatedAt) // ,    CreatedAt
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -46,13 +47,13 @@ namespace CanvasFlow.Api.Services
                 UserId = userId,
                 Title = title,
                 Description = description,
-                // ImageUrl = imageUrl, // Розкоментуйте, коли додасте поле в модель Content
-                IsPublished = true, // Залежить від вашої бізнес-логіки
+                ImageUrl = imageUrl,
+                IsPublished = true,
                                     // CreatedAt = DateTime.UtcNow,
                 Tags = new List<Tag>()
             };
 
-            // Ефективне додавання тегів (як ми робили в EditContentAsAdmin)
+            //    (    EditContentAsAdmin)
             if (tags != null && tags.Any())
             {
                 var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
@@ -76,7 +77,6 @@ namespace CanvasFlow.Api.Services
         public async Task<bool> LikeContentAsync(int contentId, int userId)
         {
             var content = await _context.Contents
-                .Include(c => c.LikeCount) 
                 .FirstOrDefaultAsync(c => c.Id == contentId);
 
             if (content == null)
@@ -89,7 +89,7 @@ namespace CanvasFlow.Api.Services
             return true;
         }
 
-        public async Task<Content> UpdateContentAsync(int contentId, string title, string description, string imageUrl, List<string> tags)
+        public async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)
         {
             var content = await _context.Contents
                 .Include(c => c.Tags)
@@ -100,14 +100,8 @@ namespace CanvasFlow.Api.Services
                 throw new KeyNotFoundException("Content not found.");
             }
 
-            // TODO: В ідеалі сюди треба передавати userId і перевіряти:
-            // if (content.UserId != userId) throw new UnauthorizedAccessException();
-
             content.Title = title;
             content.Description = description;
-            // content.ImageUrl = imageUrl; // Розкоментуйте після оновлення моделі
-
-            // Оновлення тегів
             content.Tags.Clear();
 
             if (tags != null && tags.Any())
@@ -137,7 +131,7 @@ namespace CanvasFlow.Api.Services
             }
 
             content.IsPublished = isPublished;
-            // Видалено _context.Contents.Update(content); оскільки EF сам відстежує стан
+            //  _context.Contents.Update(content);  EF   
 
             await _context.SaveChangesAsync();
 
@@ -154,7 +148,7 @@ namespace CanvasFlow.Api.Services
 
         public async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
         {
-            // Виправлено: додано .Include(c => c.Tags), щоб уникнути NullReferenceException
+            // :  .Include(c => c.Tags),   NullReferenceException
             var content = await _context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
@@ -167,15 +161,15 @@ namespace CanvasFlow.Api.Services
             content.Title = newTitle;
             content.Description = newDescription;
 
-            // Тепер це безпечно, бо Tags завантажено
+            //   ,  Tags 
             content.Tags.Clear();
 
             if (newTags != null && newTags.Any())
             {
-                // Приводимо всі вхідні теги до нижнього регістру відразу
+                //        
                 var newTagsLower = newTags.Select(t => t.ToLowerInvariant()).ToList();
 
-                // Виправлено: отримуємо всі існуючі теги з бази ОДНИМ запитом замість запиту в циклі
+                // :            
                 var existingTags = await _context.Tags
                     .Where(t => newTagsLower.Contains(t.Name))
                     .ToListAsync();
@@ -187,14 +181,14 @@ namespace CanvasFlow.Api.Services
                     if (tagToAssign == null)
                     {
                         tagToAssign = new Tag { Name = tagName };
-                        // Видалено SaveChangesAsync з циклу. EF збереже новий тег автоматично під час фінального збереження
+                        //  SaveChangesAsync  . EF        
                     }
 
                     content.Tags.Add(tagToAssign);
                 }
             }
 
-            // Видалено зайвий _context.Contents.Update(content);
+            //   _context.Contents.Update(content);
             await _context.SaveChangesAsync();
 
             await _auditService.LogActionAsync(
@@ -206,6 +200,16 @@ namespace CanvasFlow.Api.Services
             );
 
             return content;
+        }
+
+        public async Task<List<Content>> GetContentByUserIdAsync(int userId)
+        {
+            var result = await _context.Contents
+                .Include(c => c.Tags)
+                .Where(c => c.UserId == userId && !c.IsDeleted)
+                .OrderByDescending(c => c.UploadDate)
+                .ToListAsync();
+            return result;
         }
 
         public async Task<bool> DeleteContentAsync(int adminUserId, int contentId)

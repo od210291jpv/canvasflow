@@ -1,0 +1,11 @@
+# Build artifacts
+CanvasFlow.Api/bin/
+CanvasFlow.Api/obj/
+CanvasFlow.Web/bin/
+CanvasFlow.Web/obj/
+
+# Visual Studio files
+*.user
+*.suo
+*.bak
+.vs/

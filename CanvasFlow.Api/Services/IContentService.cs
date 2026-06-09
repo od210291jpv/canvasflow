@@ -21,6 +21,8 @@ namespace CanvasFlow.Api.Services
 
         Task<bool> LikeContentAsync(int contentId, int userId);
 
-        Task<Content> UpdateContentAsync(int contentId, string title, string description, string imageUrl, List<string> tags);
+        Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags);
+
+        Task<List<Content>> GetContentByUserIdAsync(int userId);
     }
 }

@@ -1,10 +1,9 @@
-// Controllers/MessagingController.cs
-using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims; // �� �������� ��� using ��� ClaimTypes
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -15,59 +14,62 @@ namespace CanvasFlow.Api.Controllers
     {
         private readonly IMessagingService _messagingService;
         private readonly INotificationService _notificationService;
+        private readonly IHubContext<ChatHub> _chatHub;
 
-        public MessagingController(IMessagingService messagingService, INotificationService notificationService)
+        public MessagingController(IMessagingService messagingService, INotificationService notificationService, IHubContext<ChatHub> chatHub)
         {
             _messagingService = messagingService;
             _notificationService = notificationService;
+            _chatHub = chatHub;
         }
 
-        /// <summary>
-        /// Sends a private chat message to another user.
-        /// </summary>
-        /// <param name="otherUserId">The ID of the recipient.</param>
-        /// <param name="messageDto">The message content.</param>
-        [HttpPost("chat")]
-        public async Task<IActionResult> SendChatMessage([FromQuery] int otherUserId, [FromBody] string messageDto)
+        // ������: ����������� ����, ��� ASP.NET �� ��������� ��������� JSON { "Content": "�����" }
+        public class SendMessageRequest
         {
-            if (string.IsNullOrWhiteSpace(messageDto))
+            public string Content { get; set; } = string.Empty;
+        }
+
+        [HttpPost("chat")]
+        public async Task<IActionResult> SendChatMessage([FromQuery] int otherUserId, [FromBody] SendMessageRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Content))
             {
                 return BadRequest("Message content cannot be empty.");
             }
 
             var senderId = GetCurrentUserId();
-            
+
             try
             {
-                // 1. Send the message
-                var message = await _messagingService.SendChatMessage(senderId, otherUserId, messageDto);
+                // 1. �������� �����������
+                var message = await _messagingService.SendChatMessage(senderId, otherUserId, request.Content);
 
-                // 2. Notify the recipient in real-time
+                // 2. ³���������� ����� SignalR
+                // 2. ³  SignalR (      ID )
+                await _chatHub.Clients.User(otherUserId.ToString()).SendAsync("ReceiveMessage", senderId, request.Content);
+
+                // 3. ³���������� ���������
                 await _notificationService.SendNotificationAsync(
                     recipientId: otherUserId,
                     senderId: senderId,
                     title: "New Chat Message",
-                    content: $"You received a message from {User.Identity.Name}.", // Assuming username is in identity
+                    content: "You received a new message.",
                     triggerType: "Chat"
                 );
 
                 return Ok(new { message.Id, message.Content, message.Timestamp });
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
                 return BadRequest(ex.Message);
             }
         }
 
-        /// <summary>
-        /// Retrieves the conversation history between the current user and another user.
-        /// </summary>
-        /// <param name="otherUserId">The ID of the user whose history is being viewed.</param>
         [HttpGet("history/{otherUserId}")]
         public async Task<IActionResult> GetConversationHistory(int otherUserId)
         {
             var currentUserId = GetCurrentUserId();
-            
+
             if (currentUserId == otherUserId)
             {
                 return BadRequest("Cannot view chat history with yourself.");
@@ -84,20 +86,39 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
-        // Helper method to simulate getting the current user's ID from the claims
+        // ==========================================
+        // ������: �����, ����� �� ��������� (����� 404 Not Found)
+        // ==========================================
+        [HttpGet("inbox")]
+        public async Task<IActionResult> GetInbox()
+        {
+            var currentUserId = GetCurrentUserId();
+
+            try
+            {
+                // �������: � ������ IMessagingService �� ���� ����� GetUserInboxAsync, 
+                // ���� ������� ������ ������ ��� ��������� �����������.
+                var inbox = await _messagingService.GetUserInboxAsync(currentUserId);
+                return Ok(inbox);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while fetching inbox: {ex.Message}");
+            }
+        }
+
+        // ����������: ����� ������ �������� ID ����������� � ������ (�� � ContentController)
         private int GetCurrentUserId()
         {
-            // In a real application, we would extract the User ID from the JWT claims.
-            // For this simulation, we assume the user ID is available in the claims.
-            if (User.Identity.IsAuthenticated && User.Claims.Any(c => c.Type == "sub"))
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                         ?? User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+            if (int.TryParse(userIdStr, out int userId))
             {
-                if (int.TryParse(User.Claims.FirstOrDefault(c => c.Type == "sub")?.Value, out int userId))
-                {
-                    return userId;
-                }
+                return userId;
             }
-            // Fallback for testing/simulation
-            return 1; 
+
+            throw new UnauthorizedAccessException("User ID not found in token.");
         }
     }
 }

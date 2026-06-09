@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 
 namespace CanvasFlow.Api.Data
 {
@@ -27,6 +28,10 @@ namespace CanvasFlow.Api.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
                 .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.AccountStatus)
+                .HasConversion<string>();
 
             modelBuilder.Entity<Content>()
                 .HasOne(c => c.User)

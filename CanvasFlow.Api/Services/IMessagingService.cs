@@ -21,5 +21,7 @@ namespace CanvasFlow.Api.Services
         /// <param name="otherUserId">The ID of the user whose history is being viewed.</param>
         /// <returns>A list of messages, sorted by timestamp.</returns>
         Task<List<Message>> GetConversationHistory(int userId, int otherUserId);
+
+        Task<List<InboxItemDto>> GetUserInboxAsync(int userId);
     }
 }

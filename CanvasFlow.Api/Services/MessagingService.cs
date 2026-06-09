@@ -1,6 +1,6 @@
-// Services/MessagingService.cs
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
+using CanvasFlow.Api.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CanvasFlow.Api.Services
@@ -20,7 +20,15 @@ namespace CanvasFlow.Api.Services
             var sender = await _context.Users.FindAsync(senderId);
             var recipient = await _context.Users.FindAsync(recipientId);
 
-            if (sender == null || recipient == null || sender.IsDeleted || recipient.IsDeleted)
+            if (senderId == recipientId)
+            {
+                throw new InvalidOperationException("Cannot send a message to yourself.");
+            }
+
+            if (sender == null || recipient == null || 
+                sender.IsDeleted || recipient.IsDeleted || 
+                sender.AccountStatus != UserStatus.Active || 
+                recipient.AccountStatus != UserStatus.Active)
             {
                 throw new InvalidOperationException("One or both users are inactive or do not exist.");
             }
@@ -45,6 +53,51 @@ namespace CanvasFlow.Api.Services
             return message;
         }
 
+        public async Task<List<InboxItemDto>> GetUserInboxAsync(int userId)
+        {
+            // 1. �������� �� �����������, �� ���������� � ����������� ��� �����������,
+            // ����������� �� ��������� �� ����������.
+            var messages = await _context.Messages
+                .Where(m => !m.IsDeleted && (m.SenderId == userId || m.RecipientId == userId))
+                .OrderByDescending(m => m.Timestamp)
+                .ToListAsync();
+
+            // 2. ������� ����������� �� ID ������ ����������� (�������������)
+            var groupedMessages = messages.GroupBy(m => m.SenderId == userId ? m.RecipientId : m.SenderId);
+
+            // 3. �������� ����� ������������-������������� ����� ������� �� ��
+            var contactIds = groupedMessages.Select(g => g.Key).ToList();
+
+            // �������: �������������, �� DbSet ���������� Users � ������ ApplicationDbContext
+            var contacts = await _context.Users
+                .Where(u => contactIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Username);
+
+            var inbox = new List<InboxItemDto>();
+
+            // 4. ������� ��������� ������ ��� Inbox
+            foreach (var group in groupedMessages)
+            {
+                var contactId = group.Key;
+                var latestMessage = group.First(); // ������� �� ��� ����������� �� ����
+
+                // ����������, �� � ���� � ���� ����������� �����������, �������� ��� �� ����� ��������
+                var hasUnread = group.Any(m => m.SenderId == contactId && m.RecipientId == userId && !m.IsRead);
+
+                inbox.Add(new InboxItemDto
+                {
+                    OtherUserId = contactId,
+                    OtherUserName = contacts.ContainsKey(contactId) ? contacts[contactId] : "Unknown User",
+                    LastMessage = latestMessage.Content,
+                    LastMessageTimestamp = latestMessage.Timestamp,
+                    HasUnread = hasUnread
+                });
+            }
+
+            // ��������� ������, ������������ �� ����� ���������� �����������
+            return inbox.OrderByDescending(i => i.LastMessageTimestamp).ToList();
+        }
+
         public async Task<List<Message>> GetConversationHistory(int userId, int otherUserId)
         {
             // Fetch messages where the current user is either the sender or the recipient.
@@ -55,8 +108,16 @@ namespace CanvasFlow.Api.Services
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
 
-            // Filter to ensure the current user's messages are marked as read if they are older than the current time
-            // (This logic is usually handled by a separate 'mark as read' endpoint, but we ensure the data is clean)
+            // Mark incoming messages as read when the history is viewed
+            var unreadMessages = history.Where(m => m.RecipientId == userId && !m.IsRead).ToList();
+            if (unreadMessages.Any())
+            {
+                foreach (var msg in unreadMessages)
+                {
+                    msg.IsRead = true;
+                }
+                await _context.SaveChangesAsync();
+            }
             
             return history;
         }

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// 2.5 Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp",
+        policy =>
+        {
+            policy
+            .WithOrigins("http://localhost:3000")
+            .WithOrigins("https://localhost:57825")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 // 3. Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IContentService, ContentService>();
@@ -51,7 +66,12 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 // -----------------------------
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -68,11 +88,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowReactApp");
+app.UseStaticFiles();
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 app.MapControllers();
 
 // 5. Map SignalR Hub
 app.MapHub<NotificationHub>("/notificationhub");
+app.MapHub<ChatHub>("/chathub");
 
 app.Run();

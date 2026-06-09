@@ -1,16 +1,14 @@
-using Microsoft.AspNetCore.Mvc;
-using CanvasFlow.Api.Services;
 using CanvasFlow.Api.Models;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Requires authentication for all content actions
+    [Authorize]
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
@@ -20,7 +18,7 @@ namespace CanvasFlow.Api.Controllers
             _contentService = contentService;
         }
 
-        // GET: api/Content/feed?page=1&limit=20&tags=tag1,tag2
+        [AllowAnonymous]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed(
             [FromQuery] int page = 1, 
@@ -33,19 +31,14 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            var feed = await _contentService.GetFeedAsync(page, limit);
+            List<Content> feed = await _contentService.GetFeedAsync(page, limit);
             return Ok(feed);
         }
 
-        // GET: api/Content/get/{contentId}
         [HttpGet("get/{contentId}")]
         public async Task<IActionResult> GetContentById(int contentId)
         {
-            // In a real scenario, we would fetch the content and check ownership/visibility.
-            // For now, we just return the content if it exists.
-            // Since the service doesn't have a GetById, we'll fetch the feed and find the item.
-            var feed = await _contentService.GetFeedAsync(1, 100); // Fetch a large set to ensure the item is found
-            var content = feed.FirstOrDefault(c => c.Id == contentId);
+            var content = await _contentService.GetContentByIdAsync(contentId);
 
             if (content == null)
             {
@@ -54,23 +47,47 @@ namespace CanvasFlow.Api.Controllers
             return Ok(content);
         }
 
-        // POST: api/Content/upload
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadContent([FromBody] UploadContentDto model)
+        public async Task<IActionResult> UploadContent([FromForm] UploadContentDto model)
         {
             // Get current user ID from JWT token
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
 
             try
             {
+                if (model.File == null || model.File.Length == 0)
+                {
+                    return BadRequest(new { error = "Please select a valid media file." });
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var fileExtension = Path.GetExtension(model.File.FileName);
+                var uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+                var physicalFilePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var stream = new FileStream(physicalFilePath, FileMode.Create))
+                {
+                    await model.File.CopyToAsync(stream);
+                }
+
+                var generatedImageUrl = "/uploads/" + uniqueFileName;
+
                 var newContent = await _contentService.UploadContentAsync(
-                    userId, 
-                    model.Title, 
-                    model.Description, 
-                    model.ImageUrl, 
+                    userId,
+                    model.Title,
+                    model.Description,
+                    generatedImageUrl, // <-- Тепер тут лежить правильний шлях
                     model.Tags);
-                
-                // FIX: Using the correct nameof() for the implemented method
+
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);
             }
             catch (Exception ex)
@@ -79,7 +96,6 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
-        // POST: api/Content/like/{contentId}
         [HttpPost("like/{contentId}")]
         public async Task<IActionResult> LikeContent(int contentId)
         {
@@ -94,7 +110,6 @@ namespace CanvasFlow.Api.Controllers
             return NotFound(new { error = "Content not found or user cannot like this content." });
         }
 
-        // PUT: api/Content/edit/{contentId}
         [HttpPut("edit/{contentId}")]
         public async Task<IActionResult> EditContent(int contentId, [FromBody] UpdateContentDto model)
         {
@@ -106,7 +121,6 @@ namespace CanvasFlow.Api.Controllers
                     contentId, 
                     model.Title, 
                     model.Description, 
-                    model.ImageUrl, 
                     model.Tags);
                 return Ok(updatedContent);
             }
@@ -120,13 +134,12 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
-        // DELETE: api/Content/delete/{contentId}
         [HttpDelete("delete/{contentId}")]
         public async Task<IActionResult> DeleteContent(int contentId)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
             
-            var success = await _contentService.DeleteContentAsync(contentId, userId);
+            var success = await _contentService.DeleteContentAsync(userId, contentId);
             
             if (success)
             {
@@ -134,13 +147,27 @@ namespace CanvasFlow.Api.Controllers
             }
             return NotFound(new { error = "Content not found or unauthorized to delete." });
         }
-        
-        // GET: api/Content/me
+
         [HttpGet("me")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetMyContent()
         {
-            // Placeholder for viewing user's own content
-            return Ok(new { message = "Successfully retrieved your content list (Implementation pending)." });
+            // Отримуємо ID користувача
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
+            Console.WriteLine($"\n---> ШУКАЮ ПУБЛІКАЦІЇ ДЛЯ USER ID: {userId} <--- \n");
+            try
+            {
+                var myContent = await _contentService.GetContentByUserIdAsync(userId);
+                return Ok(myContent); // Має повертати List<Content>
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 
@@ -149,7 +176,9 @@ namespace CanvasFlow.Api.Controllers
     {
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public string ImageUrl { get; set; } = string.Empty;
+
+        public IFormFile? File { get; set; }
+
         public List<string> Tags { get; set; } = new List<string>();
     }
 
