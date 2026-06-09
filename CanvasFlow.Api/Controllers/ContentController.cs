@@ -61,25 +61,24 @@ namespace CanvasFlow.Api.Controllers
 
             try
             {
-                if (model.File == null || model.File.Length == 0)
-                {
-                    return BadRequest(new { error = "Please select a valid media file." });
-                }
+                using var memoryStream = new MemoryStream();
+                await model.File.CopyToAsync(memoryStream);
+                var fileBytes = memoryStream.ToArray();
 
-                // Створюємо клієнт для запиту на ESP32
+                // 2. Створюємо клієнт
                 using var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(90);
+                // Вимикаємо Keep-Alive про всяк випадок
                 client.DefaultRequestHeaders.ConnectionClose = true;
-                using var multipartFormContent = new MultipartFormDataContent();
 
-                using var fileStream = model.File.OpenReadStream();
-                var fileContent = new StreamContent(fileStream);
+                // 3. Формуємо контент з масиву байтів (це гарантує наявність Content-Length)
+                using var fileContent = new ByteArrayContent(fileBytes);
                 fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
 
-                // Додаємо файл. "image" відповідає name="image" у вашій HTML-формі
+                using var multipartFormContent = new MultipartFormDataContent();
+                // Важливо: "image" має точно збігатися з name="image" у вашій HTML-формі
                 multipartFormContent.Add(fileContent, "image", model.File.FileName);
 
-                // Відправляємо POST запит на ESP32
+                // 4. Відправляємо запит
                 var espResponse = await client.PostAsync("http://192.168.88.98/api/upload", multipartFormContent);
 
                 if (!espResponse.IsSuccessStatusCode)
@@ -88,18 +87,14 @@ namespace CanvasFlow.Api.Controllers
                     return BadRequest(new { error = $"ESP32 Upload Failed: {espError}" });
                 }
 
-                // ФОРМУВАННЯ URL
-                // Увага: оскільки ESP32 відповідає просто "Upload successful!", ми припускаємо,
-                // що файл зберігається під своїм оригінальним іменем. 
-                // Якщо ESP32 генерує імена (як ComfyUI_00099_.png), вам треба змінити код ESP32, 
-                // щоб він повертав згенероване ім'я у відповіді.
-                var generatedImageUrl = $"http://192.168.88.98/images/{model.File.FileName}";
+                // 5. Зберігаємо відносне посилання для фронтенду (як ми робили в попередніх кроках)
+                var generatedImageUrl = $"/api/content/proxy-image/{model.File.FileName}";
 
                 var newContent = await _contentService.UploadContentAsync(
                     userId,
                     model.Title,
                     model.Description,
-                    generatedImageUrl, // Зберігаємо URL зовнішнього сервера
+                    generatedImageUrl,
                     model.Tags);
 
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);
