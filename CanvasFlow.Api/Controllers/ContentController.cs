@@ -68,6 +68,7 @@ namespace CanvasFlow.Api.Controllers
 
                 // Створюємо клієнт для запиту на ESP32
                 using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(90);
                 using var multipartFormContent = new MultipartFormDataContent();
 
                 using var fileStream = model.File.OpenReadStream();
