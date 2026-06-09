@@ -21,11 +21,6 @@ namespace CanvasFlow.Api.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
-        public ContentController(IContentService contentService)
-        {
-            _contentService = contentService;
-        }
-
         [AllowAnonymous]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed(
