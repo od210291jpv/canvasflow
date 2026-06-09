@@ -65,20 +65,31 @@ namespace CanvasFlow.Api.Controllers
                 await model.File.CopyToAsync(memoryStream);
                 var fileBytes = memoryStream.ToArray();
 
-                // 2. Створюємо клієнт
-                using var client = _httpClientFactory.CreateClient();
-                // Вимикаємо Keep-Alive про всяк випадок
-                client.DefaultRequestHeaders.ConnectionClose = true;
+                var safeExt = Path.GetExtension(model.File.FileName).ToLowerInvariant();
+                var safeFileName = $"img_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{safeExt}";
 
-                // 3. Формуємо контент з масиву байтів (це гарантує наявність Content-Length)
-                using var fileContent = new ByteArrayContent(fileBytes);
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
+                using var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.ConnectionClose = true;
+                client.DefaultRequestHeaders.ExpectContinue = false;
 
                 using var multipartFormContent = new MultipartFormDataContent();
-                // Важливо: "image" має точно збігатися з name="image" у вашій HTML-формі
-                multipartFormContent.Add(fileContent, "image", model.File.FileName);
+                var boundary = multipartFormContent.Headers.ContentType?.Parameters.FirstOrDefault(p => p.Name == "boundary");
+                if (boundary != null && boundary.Value != null)
+                {
+                    boundary.Value = boundary.Value.Replace("\"", "");
+                }
 
-                // 4. Відправляємо запит
+                using var fileContent = new ByteArrayContent(fileBytes);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
+                fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+                {
+                    Name = "\"image\"",          // Назва поля форми (обов'язково в лапках)
+                    FileName = $"\"{safeFileName}\"" // Назва файлу (обов'язково в лапках)
+                };
+
+                multipartFormContent.Add(fileContent);
+                await multipartFormContent.LoadIntoBufferAsync();
+
                 var espResponse = await client.PostAsync("http://192.168.88.98/api/upload", multipartFormContent);
 
                 if (!espResponse.IsSuccessStatusCode)
@@ -87,8 +98,7 @@ namespace CanvasFlow.Api.Controllers
                     return BadRequest(new { error = $"ESP32 Upload Failed: {espError}" });
                 }
 
-                // 5. Зберігаємо відносне посилання для фронтенду (як ми робили в попередніх кроках)
-                var generatedImageUrl = $"/api/content/proxy-image/{model.File.FileName}";
+                var generatedImageUrl = $"/api/content/proxy-image/{safeFileName}";
 
                 var newContent = await _contentService.UploadContentAsync(
                     userId,
