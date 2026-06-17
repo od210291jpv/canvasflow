@@ -1,6 +1,6 @@
-// Services/IAuthService.cs
 using CanvasFlow.Api.Models;
 using CanvasFlow.Api.Models.Enums;
+using CanvasFlow.Api.DTO;
 
 namespace CanvasFlow.Api.Services
 {
@@ -51,5 +51,13 @@ namespace CanvasFlow.Api.Services
         /// <param name="content">The message content.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         Task SendAdminMessage(int adminUserId, int recipientId, string content);
+
+        /// <summary>
+        /// Updates the user's profile information.
+        /// </summary>
+        /// <param name="userId">The ID of the user to update.</param>
+        /// <param name="model">The updated profile data.</param>
+        /// <returns>The updated user profile.</returns>
+        Task<User> UpdateProfile(int userId, UpdateProfileDto model);
     }
 }

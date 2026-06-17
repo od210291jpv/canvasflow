@@ -3,6 +3,7 @@ using CanvasFlow.Api.Services;
 using CanvasFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using CanvasFlow.Api.DTO;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -100,6 +101,32 @@ namespace CanvasFlow.Api.Controllers
                 await _authService.Logout(token);
 
                 return Ok(new { message = "Successfully logged out." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto model)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return Unauthorized(new { error = "User ID not found in token." });
+                }
+
+                var updatedUser = await _authService.UpdateProfile(userId, model);
+
+                return Ok(new { message = "Profile updated successfully.", user = updatedUser });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
             catch (Exception ex)
             {
