@@ -257,8 +257,8 @@
                                 <td>${new Date(item.UploadDate || item.uploadDate).toLocaleDateString()}</td>
                                 <td>${item.LikeCount || item.likeCount || 0}</td>
                                 <td>
-                                    <button onclick="alert('Редагування ${item.Id || item.id}')">✎ Редагувати</button>
-                                    <button onclick="alert('Видалення ${item.Id || item.id}')">🗑 Видалити</button>
+                                     <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
+                                    <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
                                 </td>
                             </tr>
                         `;
@@ -480,7 +480,6 @@
             const authorId = item.UserId || item.userId;
             const authorInitial = author.charAt(0).toUpperCase();
 
-            const rawImageUrl = item.imageUrl || item.ImageUrl || '';
             let finalImageUrl = getSafeImageUrl(item);;
 
             const messageBtn = (authorId !== currentUserId)
