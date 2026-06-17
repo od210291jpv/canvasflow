@@ -1,6 +1,7 @@
 using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
 using CanvasFlow.Api.Models.Enums;
+using CanvasFlow.Api.DTO;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -190,6 +191,32 @@ namespace CanvasFlow.Api.Services
             );
 
             await _auditService.LogActionAsync(adminUserId, "Sent Custom Message", "User", recipientId, $"Admin sent message: {content}");
+        }
+
+        public async Task<User> UpdateProfile(int userId, UpdateProfileDto model)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null)
+            {
+                throw new KeyNotFoundException("User not found.");
+            }
+
+            // Check if the new username is already taken by another user
+            bool isUsernameTaken = await _context.Users
+                .AnyAsync(u => u.Username == model.Username && u.Id != userId && !u.IsDeleted);
+
+            if (isUsernameTaken)
+            {
+                throw new InvalidOperationException("The new username is already taken.");
+            }
+
+            user.Username = model.Username;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            await _auditService.LogActionAsync(userId, "Profile Updated", "User", userId, $"Updated username to {model.Username}");
+
+            return user;
         }
 
         private string HashPassword(string password)
