@@ -53,7 +53,16 @@ namespace CanvasFlow.Api.Services
 
         public async Task<User?> GetUserById(int userId)
         {
-            return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            
+            if (user != null)
+            {
+                // Dynamically calculate the publication count to fix the "zero publications" issue
+                user.PublicationCount = await _context.Contents
+                    .CountAsync(c => c.UserId == userId && !c.IsDeleted);
+            }
+
+            return user;
         }
 
         /// <summary>
@@ -173,7 +182,7 @@ namespace CanvasFlow.Api.Services
         public async Task SendAdminMessage(int adminUserId, int recipientId, string content)
         {
             await _notificationService.SendNotificationAsync(
-                recipientId: recipientId, // Note: I'll fix this typo in the actual file write if found
+                recipientId: recipientId, 
                 senderId: adminUserId,
                 title: "Admin Message",
                 content: "You have received a private message from the platform administration.",
