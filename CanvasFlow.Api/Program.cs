@@ -74,6 +74,7 @@ builder.Services.AddCors(options =>
 // 3. Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IContentService, ContentService>();
+builder.Services.AddMemoryCache();
 // --- MODULE 3 REGISTRATIONS ---
 builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
