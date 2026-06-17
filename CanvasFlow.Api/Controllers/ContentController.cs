@@ -2,6 +2,7 @@ using CanvasFlow.Api.Models;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
@@ -12,10 +13,12 @@ namespace CanvasFlow.Api.Controllers
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public ContentController(IContentService contentService)
+        public ContentController(IContentService contentService, IHttpClientFactory httpClientFactory)
         {
             _contentService = contentService;
+            _httpClientFactory = httpClientFactory;
         }
 
         [AllowAnonymous]
@@ -50,7 +53,6 @@ namespace CanvasFlow.Api.Controllers
         [HttpPost("upload")]
         public async Task<IActionResult> UploadContent([FromForm] UploadContentDto model)
         {
-            // Get current user ID from JWT token
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
             {
@@ -59,36 +61,107 @@ namespace CanvasFlow.Api.Controllers
 
             try
             {
-                if (model.File == null || model.File.Length == 0)
+                using var memoryStream = new MemoryStream();
+                await model.File.CopyToAsync(memoryStream);
+                var fileBytes = memoryStream.ToArray();
+
+                var safeExt = Path.GetExtension(model.File.FileName).ToLowerInvariant();
+                var safeFileName = $"img_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{safeExt}";
+
+                using var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.ConnectionClose = true;
+                client.DefaultRequestHeaders.ExpectContinue = false;
+
+                using var multipartFormContent = new MultipartFormDataContent();
+                var boundary = multipartFormContent.Headers.ContentType?.Parameters.FirstOrDefault(p => p.Name == "boundary");
+                if (boundary != null && boundary.Value != null)
                 {
-                    return BadRequest(new { error = "Please select a valid media file." });
+                    boundary.Value = boundary.Value.Replace("\"", "");
                 }
 
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder))
+                using var fileContent = new ByteArrayContent(fileBytes);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
+                fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
                 {
-                    Directory.CreateDirectory(uploadsFolder);
+                    Name = "\"image\"",          // Назва поля форми (обов'язково в лапках)
+                    FileName = $"\"{safeFileName}\"" // Назва файлу (обов'язково в лапках)
+                };
+
+                multipartFormContent.Add(fileContent);
+                await multipartFormContent.LoadIntoBufferAsync();
+
+                var espResponse = await client.PostAsync("http://192.168.88.98/api/upload", multipartFormContent);
+
+                if (!espResponse.IsSuccessStatusCode)
+                {
+                    var espError = await espResponse.Content.ReadAsStringAsync();
+                    return BadRequest(new { error = $"ESP32 Upload Failed: {espError}" });
                 }
 
-                var fileExtension = Path.GetExtension(model.File.FileName);
-                var uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
-                var physicalFilePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var stream = new FileStream(physicalFilePath, FileMode.Create))
-                {
-                    await model.File.CopyToAsync(stream);
-                }
-
-                var generatedImageUrl = "/uploads/" + uniqueFileName;
+                var generatedImageUrl = $"/api/content/proxy-image/{safeFileName}";
 
                 var newContent = await _contentService.UploadContentAsync(
                     userId,
                     model.Title,
                     model.Description,
-                    generatedImageUrl, // <-- Тепер тут лежить правильний шлях
+                    generatedImageUrl,
                     model.Tags);
 
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("proxy-image/{*fileName}")]
+        public async Task<IActionResult> GetProxyImage(string fileName)
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+
+                var espUrl = $"http://192.168.88.98/images/{fileName}";
+                var response = await client.GetAsync(espUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return NotFound(new { error = $"Файл не знайдено на пристрої ESP32." });
+                }
+
+                var stream = await response.Content.ReadAsStreamAsync();
+
+                var contentType = fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                    ? "image/png"
+                    : "image/jpeg";
+
+                return File(stream, contentType);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("external-images")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetExternalImages()
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+                var response = await client.GetAsync("http://192.168.88.98/api/get_images");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return StatusCode((int)response.StatusCode, new { error = "Failed to fetch images from ESP32" });
+                }
+
+                // Зчитуємо JSON з ESP32 і віддаємо його клієнту як є
+                var content = await response.Content.ReadAsStringAsync();
+                return Content(content, "application/json");
             }
             catch (Exception ex)
             {

@@ -206,52 +206,68 @@
         }
     });
 
+    function getSafeImageUrl(item) {
+        const rawImageUrl = item.imageUrl || item.ImageUrl || '';
+        if (!rawImageUrl) return ''; // Якщо картинки немає взагалі
+
+        if (rawImageUrl.startsWith('http')) {
+            return rawImageUrl; // Вже повне посилання
+        } else {
+            // Відносне посилання (проксі) - безпечно додаємо baseUrl
+            const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
+            const cleanRawUrl = rawImageUrl.replace(/^\//, '');
+            return `${cleanBaseUrl}/${cleanRawUrl}`;
+        }
+    }
+
     // Завантаження таблиці публікацій
     async function loadMyPublications() {
-        myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">Завантаження...</td></tr>';
-        // Для отримання токена, якщо ви використовуєте JWT (додайте в headers). Якщо Cookie - fetch передає їх автоматично.
+        const list = document.getElementById('my-publications-list');
+        list.innerHTML = '<tr><td colspan="5" style="text-align:center;">Завантаження...</td></tr>';
+
         try {
             const response = await fetch(`${baseUrl}/api/Content/me`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // <--- ОСЬ ТУТ МИ ВІДПРАВЛЯЄМО ТОКЕН
+                    'Authorization': `Bearer ${token}`, // Передаємо токен
                     'Content-Type': 'application/json'
                 }
             });
 
             if (response.status === 401) {
-                localStorage.removeItem('token');
-                window.location.href = '/Auth';
+                list.innerHTML = '<tr><td colspan="5" class="error">Помилка 401: Ви не авторизовані. Перевірте токен.</td></tr>';
                 return;
             }
 
             const data = await response.json();
 
             if (response.ok && Array.isArray(data)) {
-                myPublicationsList.innerHTML = '';
+                list.innerHTML = '';
                 if (data.length === 0) {
-                    myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">У вас ще немає публікацій.</td></tr>';
+                    list.innerHTML = '<tr><td colspan="5" style="text-align:center;">У вас ще немає публікацій.</td></tr>';
                     return;
                 }
+
                 data.forEach(item => {
-                    myPublicationsList.innerHTML += `
+                    const finalImageUrl = getSafeImageUrl(item);
+                    list.innerHTML += `
                             <tr>
-                                <td><img src="${baseUrl}${item.imageUrl || item.ImageUrl}" alt="thumb"></td>
-                                <td>${item.title || item.Title}</td>
-                                <td>${new Date(item.uploadDate || item.UploadDate).toLocaleDateString()}</td>
-                                <td>${item.likeCount || item.LikeCount}</td>
+                                <td><img src="${finalImageUrl}" alt="thumb"></td>
+                                <td>${item.Title || item.title}</td>
+                                <td>${new Date(item.UploadDate || item.uploadDate).toLocaleDateString()}</td>
+                                <td>${item.LikeCount || item.likeCount || 0}</td>
                                 <td>
-                                    <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
+                                     <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
                                     <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
                                 </td>
                             </tr>
                         `;
                 });
             } else {
-                myPublicationsList.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка: ${data.message || data.error || 'Бекенд ще не повертає масив даних.'}</td></tr>`;
+                list.innerHTML = `<tr><td colspan="5" class="error">${data.error || 'Помилка завантаження даних.'}</td></tr>`;
             }
         } catch (error) {
-            myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка підключення.</td></tr>';
+            list.innerHTML = '<tr><td colspan="5" class="error">Помилка підключення.</td></tr>';
         }
     }
 
@@ -457,7 +473,6 @@
     function displayFeed(content) {
         let html = '';
         content.forEach(item => {
-            // Determine description property (handling different cases)
             const desc = item.Description || item.description || '';
             const title = item.Title || item.title || 'Untitled';
             const uploadDate = item.UploadDate || item.uploadDate;
@@ -465,31 +480,33 @@
             const authorId = item.UserId || item.userId;
             const authorInitial = author.charAt(0).toUpperCase();
 
+            let finalImageUrl = getSafeImageUrl(item);;
+
             const messageBtn = (authorId !== currentUserId)
                 ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">💬 Message</button>`
                 : '';
 
             html += `
-                    <div class="feed-item">
-                        <div class="feed-header">
-                            <div class="feed-avatar-placeholder">${authorInitial}</div>
-                            <div class="feed-info">
-                                <h4 class="feed-title">${title}</h4>
-                                <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                        <div class="feed-media">
-                            <img src="${baseUrl}/${item.imageUrl || item.ImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
-                        </div>
-                        <div class="feed-body">
-                            <p>${desc}</p>
-                        </div>
-                        <div class="feed-actions">
-                            <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
-                            ${messageBtn}
-                        </div>
+            <div class="feed-item">
+                <div class="feed-header">
+                    <div class="feed-avatar-placeholder">${authorInitial}</div>
+                    <div class="feed-info">
+                        <h4 class="feed-title">${title}</h4>
+                        <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
                     </div>
-                `;
+                </div>
+                <div class="feed-media">
+                    <img src="${finalImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
+                </div>
+                <div class="feed-body">
+                    <p>${desc}</p>
+                </div>
+                <div class="feed-actions">
+                    <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
+                    ${messageBtn}
+                </div>
+            </div>
+        `;
         });
         feedContent.innerHTML = html;
     }
