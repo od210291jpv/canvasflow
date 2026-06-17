@@ -49,11 +49,9 @@ namespace CanvasFlow.Api.Services
                 Description = description,
                 ImageUrl = imageUrl,
                 IsPublished = true,
-                                    // CreatedAt = DateTime.UtcNow,
                 Tags = new List<Tag>()
             };
 
-            //    (    EditContentAsAdmin)
             if (tags != null && tags.Any())
             {
                 var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();

@@ -115,6 +115,36 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpGet("proxy-image/{*fileName}")]
+        public async Task<IActionResult> GetProxyImage(string fileName)
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+
+                var espUrl = $"http://192.168.88.98/images/{fileName}";
+                var response = await client.GetAsync(espUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return NotFound(new { error = $"Файл не знайдено на пристрої ESP32." });
+                }
+
+                var stream = await response.Content.ReadAsStreamAsync();
+
+                var contentType = fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                    ? "image/png"
+                    : "image/jpeg";
+
+                return File(stream, contentType);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpGet("external-images")]
         [AllowAnonymous]
         public async Task<IActionResult> GetExternalImages()

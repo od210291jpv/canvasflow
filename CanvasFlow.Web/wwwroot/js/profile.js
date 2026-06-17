@@ -206,64 +206,68 @@
         }
     });
 
+    function getSafeImageUrl(item) {
+        const rawImageUrl = item.imageUrl || item.ImageUrl || '';
+        if (!rawImageUrl) return ''; // Якщо картинки немає взагалі
+
+        if (rawImageUrl.startsWith('http')) {
+            return rawImageUrl; // Вже повне посилання
+        } else {
+            // Відносне посилання (проксі) - безпечно додаємо baseUrl
+            const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
+            const cleanRawUrl = rawImageUrl.replace(/^\//, '');
+            return `${cleanBaseUrl}/${cleanRawUrl}`;
+        }
+    }
+
     // Завантаження таблиці публікацій
     async function loadMyPublications() {
-        myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">Завантаження...</td></tr>';
-        // Для отримання токена, якщо ви використовуєте JWT (додайте в headers). Якщо Cookie - fetch передає їх автоматично.
+        const list = document.getElementById('my-publications-list');
+        list.innerHTML = '<tr><td colspan="5" style="text-align:center;">Завантаження...</td></tr>';
+
         try {
             const response = await fetch(`${baseUrl}/api/Content/me`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // <--- ОСЬ ТУТ МИ ВІДПРАВЛЯЄМО ТОКЕН
+                    'Authorization': `Bearer ${token}`, // Передаємо токен
                     'Content-Type': 'application/json'
                 }
             });
 
             if (response.status === 401) {
-                localStorage.removeItem('token');
-                window.location.href = '/Auth';
+                list.innerHTML = '<tr><td colspan="5" class="error">Помилка 401: Ви не авторизовані. Перевірте токен.</td></tr>';
                 return;
             }
 
             const data = await response.json();
 
             if (response.ok && Array.isArray(data)) {
-                myPublicationsList.innerHTML = '';
+                list.innerHTML = '';
                 if (data.length === 0) {
-                    myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center">У вас ще немає публікацій.</td></tr>';
+                    list.innerHTML = '<tr><td colspan="5" style="text-align:center;">У вас ще немає публікацій.</td></tr>';
                     return;
                 }
+
                 data.forEach(item => {
-                    // Додаємо розумну обробку URL, як у стрічці новин
-                    const rawImageUrl = item.imageUrl || item.ImageUrl || '';
-                    let finalImageUrl = '';
-
-                    if (rawImageUrl.startsWith('http')) {
-                        finalImageUrl = rawImageUrl;
-                    } else {
-                        const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
-                        const cleanRawUrl = rawImageUrl.replace(/^\//, '');
-                        finalImageUrl = `${cleanBaseUrl}/${cleanRawUrl}`;
-                    }
-
-                    myPublicationsList.innerHTML += `
-                        <tr>
-                            <td><img src="${finalImageUrl}" alt="thumb"></td>
-                            <td>${item.title || item.Title}</td>
-                            <td>${new Date(item.uploadDate || item.UploadDate).toLocaleDateString()}</td>
-                            <td>${item.likeCount || item.LikeCount}</td>
-                            <td>
-                                <button class="action-btn btn-edit" onclick="openEditModal(${item.id || item.Id})">✎ Редагувати</button>
-                                <button class="action-btn btn-delete" onclick="deletePublication(${item.id || item.Id})">🗑 Видалити</button>
-                            </td>
-                        </tr>
-                    `;
+                    const finalImageUrl = getSafeImageUrl(item);
+                    list.innerHTML += `
+                            <tr>
+                                <td><img src="${finalImageUrl}" alt="thumb"></td>
+                                <td>${item.Title || item.title}</td>
+                                <td>${new Date(item.UploadDate || item.uploadDate).toLocaleDateString()}</td>
+                                <td>${item.LikeCount || item.likeCount || 0}</td>
+                                <td>
+                                    <button onclick="alert('Редагування ${item.Id || item.id}')">✎ Редагувати</button>
+                                    <button onclick="alert('Видалення ${item.Id || item.id}')">🗑 Видалити</button>
+                                </td>
+                            </tr>
+                        `;
                 });
             } else {
-                myPublicationsList.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка: ${data.message || data.error || 'Бекенд ще не повертає масив даних.'}</td></tr>`;
+                list.innerHTML = `<tr><td colspan="5" class="error">${data.error || 'Помилка завантаження даних.'}</td></tr>`;
             }
         } catch (error) {
-            myPublicationsList.innerHTML = '<tr><td colspan="5" class="text-center" style="color:var(--error-color)">Помилка підключення.</td></tr>';
+            list.innerHTML = '<tr><td colspan="5" class="error">Помилка підключення.</td></tr>';
         }
     }
 
@@ -477,15 +481,7 @@
             const authorInitial = author.charAt(0).toUpperCase();
 
             const rawImageUrl = item.imageUrl || item.ImageUrl || '';
-            let finalImageUrl = '';
-
-            if (rawImageUrl.startsWith('http')) {
-                finalImageUrl = rawImageUrl;
-            } else {
-                const cleanBaseUrl = typeof baseUrl !== 'undefined' ? baseUrl.replace(/\/$/, '') : '';
-                const cleanRawUrl = rawImageUrl.replace(/^\//, '');
-                finalImageUrl = `${cleanBaseUrl}/${cleanRawUrl}`;
-            }
+            let finalImageUrl = getSafeImageUrl(item);;
 
             const messageBtn = (authorId !== currentUserId)
                 ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">💬 Message</button>`
