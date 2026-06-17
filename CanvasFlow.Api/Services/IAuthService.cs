@@ -12,7 +12,7 @@ namespace CanvasFlow.Api.Services
         Task<string> Login(string username, string password);
 
         /// <summary>
-                /// Registers a new user account.
+        /// Registers a new user account.
         /// </summary>
         Task<User> RegisterUser(string username, string email, string password);
 
@@ -20,6 +20,11 @@ namespace CanvasFlow.Api.Services
         /// Gets the current user's profile based on their ID.
         /// </summary>
         Task<User?> GetUserById(int userId);
+
+        /// <summary>
+        /// Invalidates a token (Logout).
+        /// </summary>
+        Task Logout(string token);
 
         /// <summary>
         /// Admin action: Changes the status of a user account (e.g., Block, Activate).

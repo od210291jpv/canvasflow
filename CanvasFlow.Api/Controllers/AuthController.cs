@@ -83,6 +83,29 @@ namespace CanvasFlow.Api.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+                {
+                    return Unauthorized(new { error = "Authorization header is missing or invalid." });
+                }
+
+                var token = authHeader.Substring("Bearer ".Length).Trim();
+                await _authService.Logout(token);
+
+                return Ok(new { message = "Successfully logged out." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 
     public class RegisterDto
