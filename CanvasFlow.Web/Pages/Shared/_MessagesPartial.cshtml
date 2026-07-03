@@ -1,0 +1,26 @@
+<div id="messages-container" style="display: none; height: 100%;">
+    <div class="glass-card messages-layout">
+
+        <div class="inbox-pane">
+            <h3 class="pane-title">Conversations</h3>
+            <div id="inbox-list" class="inbox-list">
+                <p class="placeholder-text text-center">Loading messages...</p>
+            </div>
+        </div>
+
+        <div class="chat-pane">
+            <div class="chat-header">
+                <h3 id="active-chat-name">Select a conversation</h3>
+            </div>
+
+            <div id="chat-history" class="chat-history">
+            </div>
+
+            <div class="chat-input-area" style="display: none;" id="chat-input-area">
+                <input type="text" id="chat-message-input" class="form-control" placeholder="Type a message..." autocomplete="off" />
+                <button id="btn-send-message" class="btn-submit" style="width: auto; padding: 0 20px;">Send</button>
+            </div>
+        </div>
+
+    </div>
+</div>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Net.Http.Json;
 
 namespace CanvasFlow.Web.Pages
 {
@@ -17,10 +18,11 @@ namespace CanvasFlow.Web.Pages
         public UserProfileDto? UserProfile { get; set; }
         public bool IsError { get; set; }
         public string? ErrorMessage { get; set; }
+        public bool IsUpdateSuccess { get; set; }
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var token = HttpContext.Request.Cookies["AuthToken"];
+            var token = Request.Cookies["AuthToken"];
 
             if (string.IsNullOrEmpty(token))
             {
@@ -30,7 +32,7 @@ namespace CanvasFlow.Web.Pages
             var client = _httpClientFactory.CreateClient("ApiUrl");
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            try{
+            try {
                 var response = await client.GetAsync("api/auth/me");
 
                 if (response.IsSuccessStatusCode)
@@ -41,7 +43,6 @@ namespace CanvasFlow.Web.Pages
                 {
                     IsError = true;
                     ErrorMessage = "Failed to load profile. Please login again.";
-                    // Clear session if unauthorized
                     if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                     {
                         Response.Cookies.Delete("AuthToken");
@@ -52,6 +53,32 @@ namespace CanvasFlow.Web.Pages
             {
                 IsError = true;
                 ErrorMessage = ex.Message;
+            }
+
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostUpdateProfileAsync(string username)
+        {
+            var token = Request.Cookies["AuthToken"];
+            if (string.IsNullOrEmpty(token))
+            {
+                return RedirectToPage("/Auth");
+            }
+
+            var client = _httpClientFactory.CreateClient("ApiUrl");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var updateData = new { Username = username };
+            var response = await client.PostAsJsonAsync("api/auth/profile", updateData);
+
+            if (response.IsSuccessStatusCode)
+            {
+                IsUpdateSuccess = true;
+            }
+            else
+            {
+                ErrorMessage = "Failed to update profile.";
             }
 
             return Page();

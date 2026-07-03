@@ -1,0 +1,59 @@
+@model CanvasFlow.Web.Pages.UserProfileDto
+
+<div class="profile-card-wrapper">
+    <div class="glass-card" id="profile-card">
+        <div class="profile-header">
+            <div class="avatar" id="avatar-display">
+                @Model.Username.Substring(0, 1).ToUpper()
+            </div>
+            <h2 class="profile-name" id="display-username">@Model.Username</h2>
+            <p class="profile-role">@Model.Role</p>
+        </div>
+
+        <div id="profile-view-mode">
+            <div class="profile-details">
+                <div class="detail-item">
+                    <label>Email Address</label>
+                    <p>@Model.Email</p>
+                </div>
+                <div class="detail-item">
+                    <label>Account Status</label>
+                    <span class="status-badge @Model.AccountStatus.ToLower()">
+                        @Model.AccountStatus
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <label>Publications</label>
+                    <p>@Model.PublicationCount</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="profile-edit-mode" style="display: none;">
+            <div class="custom-form">
+                <div class="form-group">
+                    <label for="edit-username">Username</label>
+                    <input type="text" id="edit-username" class="form-control" value="@Model.Username" />
+                </div>
+                <div class="profile-actions-container" style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button type="button" id="btn-save-profile" class="btn-link nav-link" style="flex: 1; margin: 10px;">Save</button>
+                    <button type="button" id="btn-cancel-profile" class="btn-link nav-link" style="flex: 1; margin: 10px; border-color: var(--glass-border); color: var(--text-color);">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-links">
+            <a href="#" id="btn-edit-profile" class="btn-link nav-link" data-section="Management">👤 Manage Profile</a>
+            <a href="#" class="btn-link nav-link" data-section="Messages">💬 Messages</a>
+            <a href="#" class="btn-link nav-link" data-section="Notifications">🔔 Notifications</a>
+            <a href="#" class="btn-link nav-link" data-section="Publications">📚 My Publications</a>
+            <a href="#" class="btn-link nav-link active-link" data-section="Feed" id="feed-link">📰 Feed</a>
+        </div>
+
+        <div class="profile-actions">
+            <form method="post" asp-page-handler="Logout">
+                <button type="submit" id="btn-logout" class="btn-logout">Logout</button>
+            </form>
+        </div>
+    </div>
+</div>

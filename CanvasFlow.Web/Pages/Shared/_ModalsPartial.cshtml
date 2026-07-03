@@ -1,0 +1,30 @@
+<!-- Edit Publication Modal -->
+<div id="edit-modal" class="media-modal">
+    <div class="glass-card modal-form-content">
+        <span class="close-edit-modal">&times;</span>
+        <h3>Редагувати публікацію</h3>
+        <form id="edit-publication-form" class="custom-form">
+            <input type="hidden" id="edit-pub-id" />
+            <div class="form-group">
+                <label>Назва</label>
+                <input type="text" id="edit-pub-title" required class="form-control" />
+            </div>
+            <div class="form-group">
+                <label>Опис</label>
+                <textarea id="edit-pub-desc" rows="3" class="form-control"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Теги (через кому)</label>
+                <input type="text" id="edit-pub-tags" class="form-control" />
+            </div>
+            <button type="submit" class="btn-submit">Зберегти зміни</button>
+            <div id="edit-status" class="status-message"></div>
+        </form>
+    </div>
+</div>
+
+<!-- Fullscreen Media Modal -->
+<div id="media-modal" class="media-modal">
+    <span class="close-modal">&times;</span>
+    <img class="modal-content" id="modal-image" alt="Full screen preview">
+</div>
