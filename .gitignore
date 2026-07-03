@@ -2,6 +2,9 @@
 **/bin/
 **/obj/
 
+# Specific exclusions
+CanvasFlow.Tests.E2E/bin/
+
 # Visual Studio files
 *.user
 *.suo
