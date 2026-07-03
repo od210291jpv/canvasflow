@@ -1,6 +1,7 @@
 using CanvasFlow.Api.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CanvasFlow.Api.Services
 {
@@ -12,10 +13,10 @@ namespace CanvasFlow.Api.Services
 
         Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags);
 
-        // Виправлено: додано adminUserId для аудиту, видалено зайву заглушку
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ adminUserId пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         Task<bool> DeleteContentAsync(int adminUserId, int contentId);
 
-        Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize);
+        Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null);
 
         Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags);
 
