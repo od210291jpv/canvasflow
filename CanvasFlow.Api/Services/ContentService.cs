@@ -2,6 +2,10 @@ using CanvasFlow.Api.Data;
 using CanvasFlow.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace CanvasFlow.Api.Services
 {
@@ -25,16 +29,14 @@ namespace CanvasFlow.Api.Services
 
         public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize)
         {
-            //  
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 100) pageSize = 100; //     
+            if (pageSize > 100) pageSize = 100;
 
             return await _context.Contents
-                .Include(c => c.User) //  
-                .Include(c => c.Tags) //  
-                .Where(c => !c.IsDeleted && c.IsPublished) // ҳ     
-                                                           // .OrderByDescending(c => c.CreatedAt) // ,    CreatedAt
+                .Include(c => c.User)
+                .Include(c => c.Tags)
+                .Where(c => !c.IsDeleted && c.IsPublished)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -42,6 +44,8 @@ namespace CanvasFlow.Api.Services
 
         public async Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags)
         {
+            var normalizedTags = NormalizeTags(tags);
+
             var content = new Content
             {
                 UserId = userId,
@@ -52,14 +56,13 @@ namespace CanvasFlow.Api.Services
                 Tags = new List<Tag>()
             };
 
-            if (tags != null && tags.Any())
+            if (normalizedTags.Any())
             {
-                var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
                 var existingTags = await _context.Tags
-                    .Where(t => newTagsLower.Contains(t.Name))
+                    .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
 
-                foreach (var tagName in newTagsLower)
+                foreach (var tagName in normalizedTags)
                 {
                     var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName) ?? new Tag { Name = tagName };
                     content.Tags.Add(tagToAssign);
@@ -102,14 +105,15 @@ namespace CanvasFlow.Api.Services
             content.Description = description;
             content.Tags.Clear();
 
-            if (tags != null && tags.Any())
+            var normalizedTags = NormalizeTags(tags);
+
+            if (normalizedTags.Any())
             {
-                var newTagsLower = tags.Select(t => t.ToLowerInvariant()).ToList();
                 var existingTags = await _context.Tags
-                    .Where(t => newTagsLower.Contains(t.Name))
+                    .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
 
-                foreach (var tagName in newTagsLower)
+                foreach (var tagName in normalizedTags)
                 {
                     var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName) ?? new Tag { Name = tagName };
                     content.Tags.Add(tagToAssign);
@@ -120,6 +124,7 @@ namespace CanvasFlow.Api.Services
 
             return content;
         }
+
         public async Task<Content> ModerateContentAsync(int adminUserId, int contentId, bool isPublished)
         {
             var content = await _context.Contents.FindAsync(contentId);
@@ -129,7 +134,6 @@ namespace CanvasFlow.Api.Services
             }
 
             content.IsPublished = isPublished;
-            //  _context.Contents.Update(content);  EF   
 
             await _context.SaveChangesAsync();
 
@@ -146,7 +150,6 @@ namespace CanvasFlow.Api.Services
 
         public async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
         {
-            // :  .Include(c => c.Tags),   NullReferenceException
             var content = await _context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
@@ -159,34 +162,29 @@ namespace CanvasFlow.Api.Services
             content.Title = newTitle;
             content.Description = newDescription;
 
-            //   ,  Tags 
             content.Tags.Clear();
 
-            if (newTags != null && newTags.Any())
-            {
-                //        
-                var newTagsLower = newTags.Select(t => t.ToLowerInvariant()).ToList();
+            var normalizedTags = NormalizeTags(newTags);
 
-                // :            
+            if (normalizedTags.Any())
+            {
                 var existingTags = await _context.Tags
-                    .Where(t => newTagsLower.Contains(t.Name))
+                    .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
 
-                foreach (var tagName in newTagsLower)
+                foreach (var tagName in normalizedTags)
                 {
                     var tagToAssign = existingTags.FirstOrDefault(t => t.Name == tagName);
 
                     if (tagToAssign == null)
                     {
                         tagToAssign = new Tag { Name = tagName };
-                        //  SaveChangesAsync  . EF        
                     }
 
                     content.Tags.Add(tagToAssign);
                 }
             }
 
-            //   _context.Contents.Update(content);
             await _context.SaveChangesAsync();
 
             await _auditService.LogActionAsync(
@@ -231,6 +229,20 @@ namespace CanvasFlow.Api.Services
             );
 
             return result > 0;
+        }
+
+        private List<string> NormalizeTags(List<string> tags, int maxLimit = 10)
+        {
+            if (tags == null || !tags.Any()) return new List<string>();
+
+            var normalized = tags
+                .Select(t => t.Trim().ToLowerInvariant())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .Take(maxLimit)
+                .ToList();
+
+            return normalized;
         }
     }
 }
