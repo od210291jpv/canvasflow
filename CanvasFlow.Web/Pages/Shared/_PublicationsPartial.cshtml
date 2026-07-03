@@ -1,0 +1,52 @@
+<div id="publications-container" style="display: none;">
+    <div class="glass-card publications-card">
+        <h3 id="publications-title">Мої публікації</h3>
+    
+        <div class="sub-nav-links">
+            <button class="btn-sub-nav active" data-target="manage-pubs">Управління публікаціями</button>
+            <button class="btn-sub-nav" data-target="add-pub">Додати нову публікацію</button>
+        </div>
+
+        <div id="manage-pubs" class="sub-section active">
+            <div class="table-responsive">
+                <table class="publications-table">
+                    <thead>
+                        <tr>
+                            <th>Зображення</th>
+                            <th>Назва</th>
+                            <th>Дата</th>
+                            <th>Лайки</th>
+                            <th>Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody id="my-publications-list">
+                        <tr><td colspan="5" class="text-center">Завантаження...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="add-pub" class="sub-section" style="display: none;">
+            <form id="add-publication-form" class="custom-form">
+                <div class="form-group">
+                    <label>Назва</label>
+                    <input type="text" id="pub-title" required class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Опис</label>
+                    <textarea id="pub-desc" rows="3" class="form-control"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Медіафайл</label>
+                    <input type="file" id="pub-file" accept="image/*,video/*,.gif" required class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Теги (через кому)</label>
+                    <input type="text" id="pub-tags" placeholder="art, AI, landscape" class="form-control" />
+                </div>
+                <button type="submit" class="btn-submit">Опублікувати</button>
+                <div id="upload-status" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+</div>

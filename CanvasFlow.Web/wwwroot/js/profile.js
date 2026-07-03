@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function () {
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -11,8 +11,9 @@
     const feedTitle = document.getElementById('feed-title');
     const baseUrl = 'http://192.168.88.68:5000';
    
-    // Зчитуємо значення з data-атрибута (воно завжди буде рядком, тому перетворюємо в число)
-    const currentUserId = parseInt(feedContent.dataset.userId, 10);
+    // Зчитуємо значення з data-атрибута з унікального елемента user-metadata
+    const userMetadata = document.getElementById('user-metadata');
+    const currentUserId = userMetadata ? parseInt(userMetadata.dataset.userId, 10) : 0;
 
 
     // Navigation Logic
@@ -557,6 +558,72 @@
             }
         }
     });
+
+    // Edit Profile View/Edit toggles and saving
+    const btnEditProfile = document.getElementById('btn-edit-profile');
+    const btnCancelProfile = document.getElementById('btn-cancel-profile');
+    const btnSaveProfile = document.getElementById('btn-save-profile');
+    const profileViewMode = document.getElementById('profile-view-mode');
+    const profileEditMode = document.getElementById('profile-edit-mode');
+    const editUsernameInput = document.getElementById('edit-username');
+    const displayUsername = document.getElementById('display-username');
+    const avatarDisplay = document.getElementById('avatar-display');
+
+    if (btnEditProfile) {
+        btnEditProfile.addEventListener('click', () => {
+            if (profileViewMode) profileViewMode.style.display = 'none';
+            if (profileEditMode) profileEditMode.style.display = 'block';
+        });
+    }
+
+    if (btnCancelProfile) {
+        btnCancelProfile.addEventListener('click', () => {
+            if (profileEditMode) profileEditMode.style.display = 'none';
+            if (profileViewMode) profileViewMode.style.display = 'block';
+            if (editUsernameInput && displayUsername) {
+                editUsernameInput.value = displayUsername.textContent.trim();
+            }
+        });
+    }
+
+    if (btnSaveProfile) {
+        btnSaveProfile.addEventListener('click', async () => {
+            const newUsername = editUsernameInput.value.trim();
+            if (!newUsername) return;
+
+            btnSaveProfile.disabled = true;
+            btnSaveProfile.textContent = 'Saving...';
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/profile`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ Username: newUsername })
+                });
+
+                if (response.ok) {
+                    if (displayUsername) displayUsername.textContent = newUsername;
+                    if (avatarDisplay) {
+                        avatarDisplay.textContent = newUsername.substring(0, 1).toUpperCase();
+                    }
+                    if (profileEditMode) profileEditMode.style.display = 'none';
+                    if (profileViewMode) profileViewMode.style.display = 'block';
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to update profile: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Network error while updating profile.');
+            } finally {
+                btnSaveProfile.disabled = false;
+                btnSaveProfile.textContent = 'Save';
+            }
+        });
+    }
 
     // Initialize
     loadFeed(1);
