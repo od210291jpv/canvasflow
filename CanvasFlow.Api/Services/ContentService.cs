@@ -77,17 +77,12 @@ namespace CanvasFlow.Api.Services
 
         public async Task<bool> LikeContentAsync(int contentId, int userId)
         {
-            var content = await _context.Contents
-                .FirstOrDefaultAsync(c => c.Id == contentId);
+            // Use ExecuteUpdateAsync for atomic increment to prevent race conditions
+            int rowsAffected = await _context.Contents
+                .Where(c => c.Id == contentId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.LikeCount, c => c.LikeCount + 1));
 
-            if (content == null)
-            {
-                throw new KeyNotFoundException("Content not found.");
-            }
-
-            content.LikeCount++;
-            await _context.SaveChangesAsync();
-            return true;
+            return rowsAffected > 0;
         }
 
         public async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)
