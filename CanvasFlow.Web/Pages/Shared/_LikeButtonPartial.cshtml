@@ -1,0 +1,6 @@
+<button class="like-button" 
+        data-content-id="@Model.Id" 
+        data-is-liked="@(Model.LikeCount > 0 ? "true" : "false")">
+    <span class="heart-icon">❤</span>
+    <span class="like-text">Like</span>
+</button>
