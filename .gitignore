@@ -1,8 +1,6 @@
-# Build artifacts
-CanvasFlow.Api/bin/
-CanvasFlow.Api/obj/
-CanvasFlow.Web/bin/
-CanvasFlow.Web/obj/
+# Build artifacts - all projects
+**/bin/
+**/obj/
 
 # Visual Studio files
 *.user
