@@ -34,7 +34,8 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            List<Content> feed = await _contentService.GetFeedAsync(page, limit);
+            // Pass the parsed tag list to the service
+            List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
             return Ok(feed);
         }
 
