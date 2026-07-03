@@ -84,6 +84,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 messagesContainer.style.display = 'block'; // Використовуємо змінну
                 loadInbox();
             }
+            else if (section == "Management")
+            {
+                // do nothing here
+            }
             else {
                 placeholderContainer.style.display = 'flex';
                 placeholderTitle.textContent = section;
