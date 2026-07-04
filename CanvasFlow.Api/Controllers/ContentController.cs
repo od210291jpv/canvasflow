@@ -34,7 +34,8 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            List<Content> feed = await _contentService.GetFeedAsync(page, limit);
+            // Pass the parsed tag list to the service
+            List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
             return Ok(feed);
         }
 
@@ -83,8 +84,8 @@ namespace CanvasFlow.Api.Controllers
                 fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
                 fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
                 {
-                    Name = "\"image\"",          // Назва поля форми (обов'язково в лапках)
-                    FileName = $"\"{safeFileName}\"" // Назва файлу (обов'язково в лапках)
+                    Name = "\"image\"",          
+                    FileName = $"\"{safeFileName}\"" 
                 };
 
                 multipartFormContent.Add(fileContent);
@@ -128,7 +129,7 @@ namespace CanvasFlow.Api.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return NotFound(new { error = $"Файл не знайдено на пристрої ESP32." });
+                    return NotFound(new { error = "Image not found on ESP32." });
                 }
 
                 var stream = await response.Content.ReadAsStreamAsync();
@@ -159,7 +160,6 @@ namespace CanvasFlow.Api.Controllers
                     return StatusCode((int)response.StatusCode, new { error = "Failed to fetch images from ESP32" });
                 }
 
-                // Зчитуємо JSON з ESP32 і віддаємо його клієнту як є
                 var content = await response.Content.ReadAsStringAsync();
                 return Content(content, "application/json");
             }
@@ -172,21 +172,41 @@ namespace CanvasFlow.Api.Controllers
         [HttpPost("like/{contentId}")]
         public async Task<IActionResult> LikeContent(int contentId)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
-            
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
+
+            var content = await _contentService.GetContentByIdAsync(contentId);
+            if (content == null)
+            {
+                return NotFound(new { error = "Content not found." });
+            }
+
+            // Rule: UserId != AuthorId
+            if (content.UserId == userId)
+            {
+                return BadRequest(new { error = "You cannot like your own content." });
+            }
+
             var success = await _contentService.LikeContentAsync(contentId, userId);
             
             if (success)
             {
                 return Ok(new { message = "Content liked successfully." });
             }
-            return NotFound(new { error = "Content not found or user cannot like this content." });
+            return BadRequest(new { error = "Failed to like content." });
         }
 
         [HttpPut("edit/{contentId}")]
         public async Task<IActionResult> EditContent(int contentId, [FromBody] UpdateContentDto model)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
 
             try
             {
@@ -210,7 +230,11 @@ namespace CanvasFlow.Api.Controllers
         [HttpDelete("delete/{contentId}")]
         public async Task<IActionResult> DeleteContent(int contentId)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID missing."));
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized(new { error = "User ID missing or invalid." });
+            }
             
             var success = await _contentService.DeleteContentAsync(userId, contentId);
             
@@ -225,17 +249,15 @@ namespace CanvasFlow.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetMyContent()
         {
-            // Отримуємо ID користувача
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
             {
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
-            Console.WriteLine($"\n---> ШУКАЮ ПУБЛІКАЦІЇ ДЛЯ USER ID: {userId} <--- \n");
             try
             {
                 var myContent = await _contentService.GetContentByUserIdAsync(userId);
-                return Ok(myContent); // Має повертати List<Content>
+                return Ok(myContent);
             }
             catch (Exception ex)
             {
@@ -244,14 +266,11 @@ namespace CanvasFlow.Api.Controllers
         }
     }
 
-    // DTOs for clean request/response handling
     public class UploadContentDto
     {
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-
         public IFormFile? File { get; set; }
-
         public List<string> Tags { get; set; } = new List<string>();
     }
 

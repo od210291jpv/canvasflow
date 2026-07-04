@@ -27,16 +27,39 @@ namespace CanvasFlow.Api.Services
                 .FirstOrDefaultAsync(c => c.Id == contentId);
         }
 
-        public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize)
+        public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
 
-            return await _context.Contents
+            IQueryable<Content> query = _context.Contents
                 .Include(c => c.User)
                 .Include(c => c.Tags)
-                .Where(c => !c.IsDeleted && c.IsPublished)
+                .Where(c => !c.IsDeleted && c.IsPublished);
+
+            if (tags != null && tags.Any())
+            {
+                // AND intersection: content must have ALL provided tags
+                var tagIds = await _context.Tags
+                    .Where(t => tags.Contains(t.Name))
+                    .Select(t => t.Id)
+                    .ToListAsync();
+
+                if (tagIds.Any())
+                {
+                    // Filter contents that contain all the required tag IDs
+                    query = query.Where(c => c.Tags.Any(t => tagIds.Contains(t.Id)) && 
+                                             c.Tags.Count(t => tagIds.Contains(t.Id)) == tagIds.Count);
+                }
+                else
+                {
+                    // If none of the provided tags exist in DB, return empty list
+                    return new List<Content>();
+                }
+            }
+
+            return await query
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -77,17 +100,12 @@ namespace CanvasFlow.Api.Services
 
         public async Task<bool> LikeContentAsync(int contentId, int userId)
         {
-            var content = await _context.Contents
-                .FirstOrDefaultAsync(c => c.Id == contentId);
+            // Use ExecuteUpdateAsync for atomic increment to prevent race conditions
+            int rowsAffected = await _context.Contents
+                .Where(c => c.Id == contentId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.LikeCount, c => c.LikeCount + 1));
 
-            if (content == null)
-            {
-                throw new KeyNotFoundException("Content not found.");
-            }
-
-            content.LikeCount++;
-            await _context.SaveChangesAsync();
-            return true;
+            return rowsAffected > 0;
         }
 
         public async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)

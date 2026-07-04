@@ -1,0 +1,38 @@
+/* Like Button Styles */
+.like-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.like-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.like-button.liked {
+    background: rgba(255, 45, 85, 0.3);
+    border-color: #ff2d55;
+    color: #ff2d55;
+}
+
+.like-button .heart-icon {
+    font-size: 1.2rem;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.like-button.liked .heart-icon {
+    transform: scale(1.2);
+}
+
+.like-button:active {
+    transform: scale(0.95);
+}
