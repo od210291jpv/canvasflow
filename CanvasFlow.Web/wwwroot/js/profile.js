@@ -28,6 +28,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const subSections = document.querySelectorAll('.sub-section');
     let currentChatUserId = null;
 
+    // Tag Filter Elements
+    const tagChipsContainer = document.getElementById('tag-chips');
+
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(`${baseUrl}/chathub`, { accessTokenFactory: () => token })
         .withAutomaticReconnect()
@@ -316,18 +319,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const result = await response.json();
 
             if (response.ok) {
-                statusDiv.textContent = 'Успішно опубліковано!';
-                statusDiv.style.color = 'var(--accent-color)';
-                document.getElementById('add-publication-form').reset();
-                // Повертаємось на вкладку управління
-                document.querySelector('[data-target="manage-pubs"]').click();
-            } else {
-                statusDiv.textContent = `Помилка: ${result.error}`;
-                statusDiv.style.color = 'var(--error-color)';
+                // Append immediately to UI
+                const historyContainer = document.getElementById('chat-history');
+                historyContainer.innerHTML += `<div class="msg-bubble msg-sent">${content}</div>`;
+                historyContainer.scrollTop = historyContainer.scrollHeight;
+                inputField.value = '';
+                loadInbox();
             }
         } catch (error) {
-            statusDiv.textContent = 'Сталася помилка при завантаженні.';
-            statusDiv.style.color = 'var(--error-color)';
+            console.error('Error sending message:', error);
         }
     });
 
@@ -454,13 +454,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Feed Loading Logic
-    async function loadFeed(page = 1) {
+    async function loadFeed(page = 1, tags = []) {
         feedContent.innerHTML = '<div class="loading-spinner">Loading feed...</div>';
         paginationControls.innerHTML = '';
         feedTitle.textContent = 'Community Feed';
 
+        let tagQuery = '';
+        if (tags.length > 0) {
+            tagQuery = `&tags=${tags.join(',')}`;
+        }
+
         try {
-            const response = await fetch(`${baseUrl}/api/Content/feed?page=${page}&limit=20`);
+            const response = await fetch(`${baseUrl}/api/Content/feed?page=${page}&limit=20${tagQuery}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -540,6 +545,78 @@ document.addEventListener('DOMContentLoaded', function () {
         paginationHtml += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next &raquo;</button>`;
 
         paginationControls.innerHTML = paginationHtml;
+    }
+
+    // Tag Filter Logic (Merged from tag-filter.js)
+    async function initTags() {
+        if (!tagChipsContainer) return;
+        try {
+            const response = await fetch(`${baseUrl}/api/content/tags`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch tags');
+
+            const tags = await response.json(); // Expecting an array of strings or objects with a 'Name' property
+            renderTagChips(tags);
+        } catch (error) {
+            console.error('Error fetching tags:', error);
+            // Fallback if API fails
+            renderTagChips(['General', 'Tech', 'News', 'Art', 'Gaming']);
+        }
+    }
+
+    function renderTagChips(tags) {
+        if (!tagChipsContainer) return;
+        tagChipsContainer.innerHTML = '';
+        
+        // Add "All" button first
+        const allBtn = document.createElement('button');
+        allBtn.className = 'tag-chip active';
+        allBtn.textContent = 'All';
+        allBtn.setAttribute('data-tag', '');
+        tagChipsContainer.appendChild(allBtn);
+
+        // Add dynamic tags
+        tags.forEach((tag, index) => {
+            // Handle both string and object responses from API
+            const tagName = typeof tag === 'string' ? tag : (tag.Name || tag.title || tag);
+            if (tagName && tagName !== 'All') {
+                const btn = document.createElement('button');
+                btn.className = 'tag-chip';
+                btn.textContent = tagName;
+                btn.setAttribute('data-tag', tagName);
+                tagChipsContainer.appendChild(btn);
+            }
+        });
+    }
+
+    // Initialize Tags and Feed
+    initTags();
+    loadFeed(1);
+
+    // Handle chip clicks
+    if (tagChipsContainer) {
+        tagChipsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tag-chip')) {
+                const chip = e.target;
+                const tagValue = chip.getAttribute('data-tag');
+
+                // Update UI
+                document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+
+                // Fetch new data
+                if (tagValue === "" || tagValue === null) {
+                    loadFeed(1);
+                } else {
+                    loadFeed(1, [tagValue]);
+                }
+            }
+        });
     }
 
     document.getElementById('btn-logout').addEventListener('click', () => {
@@ -628,7 +705,4 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
-    // Initialize
-    loadFeed(1);
 });
