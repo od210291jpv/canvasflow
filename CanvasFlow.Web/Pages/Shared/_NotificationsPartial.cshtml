@@ -1,0 +1,86 @@
+<div class="notification-bell-container">
+    <div class="notification-bell" id="notif-bell">
+        <i class="fas fa-bell"></i>
+        <span id="notif-badge" class="hidden">0</span>
+    </div>
+    <div id="notifications-dropdown" class="hidden">
+        <ul id="notifications-list">
+            <!-- Notifications will be injected here -->
+        </ul>
+    </div>
+</div>
+
+<style>
+    .notification-bell-container {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    .notification-bell {
+        font-size: 24px;
+        padding: 10px;
+        border-radius: 50%;
+        transition: transform 0.2s;
+    }
+
+    .notification-bell:hover {
+        transform: scale(1.1);
+    }
+
+    #notif-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background-color: red;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 6px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    #notif-badge.hidden {
+        display: none;
+    }
+
+    #notifications-dropdown {
+        position: absolute;
+        top: 40px;
+        right: 0;
+        width: 300px;
+        background: white;
+        border: 1px solid #ddd;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        z-index: 1000;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    #notifications-dropdown.hidden {
+        display: none;
+    }
+
+    #notifications-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .notification-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+    }
+
+    .notification-item:last-child {
+        border-bottom: none;
+    }
+
+    .notification-item .time {
+        font-size: 10px;
+        color: #888;
+        display: block;
+    }
+</style>
