@@ -3,7 +3,7 @@ using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using System.Security.Claims; // �� �������� ��� using ��� ClaimTypes
+using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -23,7 +23,6 @@ namespace CanvasFlow.Api.Controllers
             _chatHub = chatHub;
         }
 
-        // ������: ����������� ����, ��� ASP.NET �� ��������� ��������� JSON { "Content": "�����" }
         public class SendMessageRequest
         {
             public string Content { get; set; } = string.Empty;
@@ -41,19 +40,15 @@ namespace CanvasFlow.Api.Controllers
 
             try
             {
-                // 1. �������� �����������
                 var message = await _messagingService.SendChatMessage(senderId, otherUserId, request.Content);
 
-                // 2. ³���������� ����� SignalR
-                // 2. ³  SignalR (      ID )
                 await _chatHub.Clients.User(otherUserId.ToString()).SendAsync("ReceiveMessage", senderId, request.Content);
 
-                // 3. ³���������� ���������
                 await _notificationService.SendNotificationAsync(
                     recipientId: otherUserId,
                     senderId: senderId,
                     title: "New Chat Message",
-                    content: "You received a new message.",
+                    content: request.Content,
                     triggerType: "Chat"
                 );
 
@@ -86,9 +81,6 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
-        // ==========================================
-        // ������: �����, ����� �� ��������� (����� 404 Not Found)
-        // ==========================================
         [HttpGet("inbox")]
         public async Task<IActionResult> GetInbox()
         {
@@ -96,8 +88,6 @@ namespace CanvasFlow.Api.Controllers
 
             try
             {
-                // �������: � ������ IMessagingService �� ���� ����� GetUserInboxAsync, 
-                // ���� ������� ������ ������ ��� ��������� �����������.
                 var inbox = await _messagingService.GetUserInboxAsync(currentUserId);
                 return Ok(inbox);
             }
@@ -107,7 +97,22 @@ namespace CanvasFlow.Api.Controllers
             }
         }
 
-        // ����������: ����� ������ �������� ID ����������� � ������ (�� � ContentController)
+        [HttpGet("notifications")]
+        public async Task<IActionResult> GetNotifications()
+        {
+            var currentUserId = GetCurrentUserId();
+
+            try
+            {
+                var notifications = await _notificationService.GetUserNotificationsAsync(currentUserId);
+                return Ok(notifications);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while fetching notifications: {ex.Message}");
+            }
+        }
+
         private int GetCurrentUserId()
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
