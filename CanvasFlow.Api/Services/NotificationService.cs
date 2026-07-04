@@ -35,7 +35,15 @@ namespace CanvasFlow.Api.Services
             await _context.SaveChangesAsync();
 
             // 2. Real-time push via SignalR
-            await _hubContext.Clients.User(recipientId.ToString()).SendAsync("ReceiveNotification", notification);
+            await _hubContext.Clients.User(recipientId.ToString()).SendAsync("ReceiveNotification", new 
+            {
+                SenderId = senderId,
+                RecipientId = recipientId,
+                Content = $"{title}: {content}",
+                Type = MessageType.SystemNotification,
+                IsRead = false,
+                Timestamp = DateTime.UtcNow
+            });
         }
 
         public async Task BroadcastNotificationAsync(string title, string content)

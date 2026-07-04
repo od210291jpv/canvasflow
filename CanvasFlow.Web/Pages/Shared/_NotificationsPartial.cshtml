@@ -1,86 +1,165 @@
-<div class="notification-bell-container">
+﻿<div class="notification-bell-container">
+
     <div class="notification-bell" id="notif-bell">
+
         <i class="fas fa-bell"></i>
+
         <span id="notif-badge" class="hidden">0</span>
+
     </div>
+
     <div id="notifications-dropdown" class="hidden">
+
+        <div class="dropdown-header">
+
+            <span>Notifications</span>
+
+        </div>
+
         <ul id="notifications-list">
+
             <!-- Notifications will be injected here -->
+
         </ul>
+
     </div>
 </div>
-
 <style>
-    .notification-bell-container {
-        position: relative;
-        display: inline-block;
-        cursor: pointer;
-    }
 
-    .notification-bell {
-        font-size: 24px;
-        padding: 10px;
-        border-radius: 50%;
-        transition: transform 0.2s;
-    }
+.notification-bell-container {
+    position: relative;
+    width: 100%;
+}
+
+
+
+.notification-bell {
+    font-size: 20px;
+    padding: 10px;    
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
 
     .notification-bell:hover {
-        transform: scale(1.1);
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(1.05);
     }
 
+.status-badge {
+    background-color: #1aa34a;
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+    /* --- СТИЛІ БЕДЖА (Синя пігулка) --- */
     #notif-badge {
-        position: absolute;
-        top: 0;
-        right: 0;
-        background-color: red;
+        background-color: #0d6efd; /* Синій колір */
         color: white;
-        border-radius: 50%;
-        padding: 2px 6px;
+        border-radius: 12px; /* Форма пігулки */
+        padding: 2px 8px; /* Відступи */
         font-size: 12px;
         font-weight: bold;
+        line-height: 1.2;
     }
 
-    #notif-badge.hidden {
-        display: none;
+        #notif-badge.hidden {
+            display: none;
+        }
+
+    /* --- СТИЛІ ВИПАДАЮЧОГО СПИСКУ --- */
+    .notification-bell-container {
+        position: relative; /* Критично важливо для випадаючого списку */
     }
 
     #notifications-dropdown {
         position: absolute;
-        top: 40px;
-        right: 0;
-        width: 300px;
-        background: white;
-        border: 1px solid #ddd;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        border-radius: 8px;
-        z-index: 1000;
-        max-height: 400px;
+        top: calc(100% + 5px); /* Рівно під кнопкою + 5px відступ */
+        left: 0;
+        width: 100%; /* Ширина така ж як у кнопки меню */
+        background: rgba(42, 42, 64, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        border-radius: 10px;
+        z-index: 9999;
+        max-height: 250px;
         overflow-y: auto;
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     #notifications-dropdown.hidden {
         display: none;
     }
 
-    #notifications-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .notification-item {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
+    .dropdown-header {
+        padding: 10px 12px;
+        font-weight: bold;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
         font-size: 14px;
     }
 
-    .notification-item:last-child {
-        border-bottom: none;
+    #notifications-list {
+        padding: 0;
+        margin: 0;
+        list-style: none;
     }
 
-    .notification-item .time {
-        font-size: 10px;
-        color: #888;
-        display: block;
+    .notification-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 13px;
+        color: #e0e0e0;
+        transition: background 0.2s;
+        cursor: pointer;
     }
+
+        .notification-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .notification-item .time {
+            font-size: 10px;
+            color: #8888a5;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+    /* Custom Scrollbar для випадаючого списку */
+    #notifications-dropdown::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #notifications-dropdown::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #notifications-dropdown::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+    }
+
 </style>
+

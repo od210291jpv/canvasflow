@@ -2,9 +2,8 @@ const baseUrl = 'http://192.168.88.68:5000';
 const connection = new signalR.HubConnectionBuilder()
     .withUrl(`${baseUrl}/notificationhub`, {
         accessTokenFactory: () => {
-            // Assuming the token is stored in localStorage or a global variable
-            // In a real app, you'd get this from your auth state management
-            return localStorage.getItem("access_token") || "";
+            // Using 'token' as per other JS files in the project
+            return localStorage.getItem("token") || "";
         }
     })
     .withAutomaticReconnect()
@@ -56,10 +55,18 @@ async function startConnection() {
     }
 }
 
-// Fetch initial notifications from API
+// Fetch initial notifications from API with Authorization header
 async function fetchInitialNotifications() {
     try {
-        const response = await fetch(`${baseUrl}/api/messaging/notifications?userId=${userId}`);
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${baseUrl}/api/messaging/notifications?userId=${userId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
         if (response.ok) {
             const data = await response.json();
             notifList.innerHTML = ""; // Clear list
@@ -73,6 +80,8 @@ async function fetchInitialNotifications() {
             } else {
                 notifBadge.classList.add("hidden");
             }
+        } else {
+            console.error("Failed to fetch notifications, status:", response.status);
         }
     } catch (err) {
         console.error("Error fetching initial notifications:", err);

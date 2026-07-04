@@ -48,7 +48,7 @@ namespace CanvasFlow.Api.Controllers
                     recipientId: otherUserId,
                     senderId: senderId,
                     title: "New Chat Message",
-                    content: "You received a new message.",
+                    content: request.Content,
                     triggerType: "Chat"
                 );
 
