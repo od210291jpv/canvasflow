@@ -2,9 +2,11 @@ using CanvasFlow.Api.Data;
 using CanvasFlow.Api.DTO;
 using CanvasFlow.Api.Models.Enums;
 using CanvasFlow.Api.Services;
+using CanvasFlow.Api.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -16,12 +18,14 @@ namespace CanvasFlow.Api.Controllers
         private readonly IAuthService _authService;
         private readonly IContentService _contentService;
         private readonly ApplicationDbContext _context;
+        private readonly IHubContext<NotificationHub> _notificationHub;
 
-        public AdminController(IAuthService authService, IContentService contentService, ApplicationDbContext context)
+        public AdminController(IAuthService authService, IContentService contentService, ApplicationDbContext context, IHubContext<NotificationHub> notificationHub)
         {
             _authService = authService;
             _contentService = contentService;
             _context = context;
+            _notificationHub = notificationHub;
         }
 
         [HttpPost("user/status")]
@@ -31,6 +35,13 @@ namespace CanvasFlow.Api.Controllers
             try
             {
                 var updatedUser = await _authService.UpdateUserStatus(adminUserId, targetUserId, newStatus);
+                
+                // Send real-time notification to the user about their status change
+                await _notificationHub.Clients.User(targetUserId.ToString()).SendAsync("ReceiveNotification", new {
+                    Title = "Status Updated",
+                    Content = $"Your account status has been updated to {newStatus}."
+                });
+
                 return Ok(updatedUser);
             }
             catch (UnauthorizedAccessException ex)
@@ -58,7 +69,6 @@ namespace CanvasFlow.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
 
         [HttpPost("user/message")]
         public async Task<IActionResult> SendCustomMessage([FromQuery] int recipientUserId, [FromBody] string content)
