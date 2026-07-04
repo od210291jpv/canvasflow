@@ -1,9 +1,9 @@
 // Services/NotificationService.cs
 using CanvasFlow.Api.Data;
-using CanvasFlow.Api.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
 using CanvasFlow.Api.Hubs;
+using CanvasFlow.Api.Models;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace CanvasFlow.Api.Services
 {
@@ -25,8 +25,7 @@ namespace CanvasFlow.Api.Services
             {
                 SenderId = senderId,
                 RecipientId = recipientId,
-                // FIX: Removed redundant Content assignment. Using the combined string directly.
-                Content = $"{title}: {content} (Trigger: {triggerType})", 
+                Content = $"{title}: {content} (Trigger: {triggerType})",
                 Type = MessageType.SystemNotification,
                 IsRead = false,
                 Timestamp = DateTime.UtcNow
@@ -51,6 +50,15 @@ namespace CanvasFlow.Api.Services
                 IsRead = false,
                 Timestamp = DateTime.UtcNow
             });
+        }
+
+        public async Task<IEnumerable<Message>> GetUserNotificationsAsync(int userId)
+        {
+            // Retrieve only system notifications for the specific user, ordered by newest first
+            return await _context.Messages
+                .Where(m => m.RecipientId == userId && m.Type == MessageType.SystemNotification)
+                .OrderByDescending(m => m.Timestamp)
+                .ToListAsync();
         }
     }
 }
