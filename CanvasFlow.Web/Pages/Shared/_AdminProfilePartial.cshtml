@@ -1,0 +1,14 @@
+@* Admin Profile Partial View - Displays admin user profile information *@
+<div class="admin-profile-container">
+    <!-- Loading state -->
+    <div id="profile-loading" class="profile-loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading profile...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="profile-error" class="profile-error" style="display: none;"></div>
+
+    <!-- Profile content will be rendered here by adminProfile.js -->
+    <div id="admin-profile-content"></div>
+</div>

@@ -6,9 +6,24 @@
 }
 
 <link rel="stylesheet" href="~/css/profile.css" asp-append-version="true" />
-<link rel="stylesheet" href="~/css/admin-dashboard.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-common.css"asp-append-version="true" />
 
 <div class="admin-dashboard-container">
+    <!-- Top Navigation Bar -->
+    <nav class="admin-top-nav">
+        <div class="admin-top-nav-left">
+            <h2 class="admin-logo">Admin Portal</h2>
+        </div>
+        <div class="admin-top-nav-right">
+            <a asp-page="/Admin/Dashboard" class="admin-nav-link active">
+                <span class="icon">🏠</span> Dashboard
+            </a>
+            <a asp-page="/Admin/Profile" class="admin-nav-link">
+                <span class="icon">👤</span> Admin Profile
+            </a>
+        </div>
+    </nav>
+
     <div class="glass-card admin-main-card">
         <div class="admin-header">
             <h1 class="admin-title">Admin Control Panel</h1>
