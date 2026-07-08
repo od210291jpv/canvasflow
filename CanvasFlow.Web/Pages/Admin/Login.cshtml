@@ -1,0 +1,41 @@
+@page
+@model CanvasFlow.Web.Pages.Admin.LoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "Admin Login";
+}
+
+<link rel="stylesheet" href="~/css/admin-common.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-login.css" asp-append-version="true" />
+
+<div class="admin-login-container">
+    <div class="glass-card admin-login-card">
+        <!-- Logo / Header -->
+        <div class="admin-login-header">
+            <div class="admin-logo">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <h1 class="admin-login-title">Admin Panel</h1>
+            <p class="admin-login-subtitle">CanvasFlow Content Management System</p>
+        </div>
+
+        <!-- Alert Messages -->
+        @if (!string.IsNullOrEmpty(Model.Message))
+        {
+            <div class="alert @(Model.IsError ? "alert-error" : "alert-success")" id="login-alert">
+                @Model.Message
+            </div>
+        }
+
+        <!-- Login Form Partial -->
+        <partial name="_AdminLoginFormPartial" />
+
+        <!-- Status Message -->
+        <div id="login-status" class="status-message" style="display: none;"></div>
+    </div>
+</div>
+
+<script src="~/js/admin-login.js" asp-append-version="true"></script>

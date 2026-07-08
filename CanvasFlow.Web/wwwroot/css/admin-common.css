@@ -1,0 +1,334 @@
+/* Admin Common Styles - Shared dashboard elements */
+
+:root {
+    --admin-primary: #00d2ff;
+    --admin-primary-dark: #00a8cc;
+    --admin-bg-dark: #0f0c29;
+    --admin-bg-mid: #302b63;
+    --admin-bg-light: #24243e;
+    --glass-bg: rgba(255, 255, 255, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --text-color: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.7);
+    --success-color: #00ff88;
+    --error-color: #ff4b2b;
+    --warning-color: #ffaa00;
+}
+
+/* Glass Card Base */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Admin Header */
+.admin-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.admin-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 8px 0;
+}
+
+.admin-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Admin Navigation */
+.admin-nav-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 15px;
+}
+
+.admin-nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.admin-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border-color: var(--admin-primary);
+}
+
+.admin-nav-btn.active {
+    background: rgba(0, 210, 255, 0.15);
+    color: var(--admin-primary);
+    border-color: var(--admin-primary);
+}
+
+.admin-nav-btn .icon {
+    font-size: 1.1rem;
+}
+
+/* Admin Content Area */
+.admin-content-area {
+    min-height: 400px;
+}
+
+.admin-tab-section {
+    display: none;
+}
+
+.admin-tab-section.active {
+    display: block;
+}
+
+/* Glass Table Wrapper */
+.glass-table-wrapper {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid var(--glass-border);
+}
+
+/* Admin Table */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table thead th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-table tbody td {
+    padding: 14px 16px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.text-right {
+    text-align: right;
+}
+
+/* Badge Styles */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.bg-success {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--success-color);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.bg-danger {
+    background: rgba(255, 75, 43, 0.2);
+    color: var(--error-color);
+    border: 1px solid rgba(255, 75, 43, 0.3);
+}
+
+.bg-warning {
+    background: rgba(255, 170, 0, 0.2);
+    color: var(--warning-color);
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.bg-info {
+    background: rgba(0, 210, 255, 0.2);
+    color: var(--admin-primary);
+    border: 1px solid rgba(0, 210, 255, 0.3);
+}
+
+/* Button Styles */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.btn-success {
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--success-color);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.btn-success:hover {
+    background: rgba(0, 255, 136, 0.3);
+}
+
+.btn-danger {
+    background: rgba(255, 75, 43, 0.2);
+    color: var(--error-color);
+    border: 1px solid rgba(255, 75, 43, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(255, 75, 43, 0.3);
+}
+
+.btn-warning {
+    background: rgba(255, 170, 0, 0.2);
+    color: var(--warning-color);
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.btn-warning:hover {
+    background: rgba(255, 170, 0, 0.3);
+}
+
+/* Alert Styles */
+.alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.alert-error {
+    background: rgba(255, 75, 43, 0.15);
+    border: 1px solid rgba(255, 75, 43, 0.3);
+    color: var(--error-color);
+}
+
+.alert-success {
+    background: rgba(0, 255, 136, 0.15);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: var(--success-color);
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: var(--text-color);
+    box-sizing: border-box;
+    outline: none;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.form-control:focus {
+    border-color: var(--admin-primary);
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+}
+
+/* Submit Button */
+.btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--admin-primary);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-submit:hover {
+    background: var(--admin-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 210, 255, 0.3);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+/* Spinner Loader */
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .glass-card {
+        padding: 25px;
+    }
+    
+    .admin-nav-group {
+        flex-direction: column;
+    }
+    
+    .admin-table thead th,
+    .admin-table tbody td {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+    }
+}

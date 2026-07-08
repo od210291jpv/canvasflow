@@ -1,0 +1,40 @@
+@model CanvasFlow.Web.Pages.Admin.LoginModel
+
+<form id="admin-login-form" method="post" asp-page-handler="Login">
+    <div class="form-group">
+        <label asp-for="LoginData.Username">Ім'я користувача</label>
+        <input asp-for="LoginData.Username" 
+               id="admin-username" 
+               class="form-control" 
+               type="text" 
+               placeholder="Введіть ім'я користувача" 
+               required 
+               autocomplete="username" />
+    </div>
+    
+    <div class="form-group">
+        <label asp-for="LoginData.Password">Пароль</label>
+        <input asp-for="LoginData.Password" 
+               id="admin-password" 
+               class="form-control" 
+               type="password" 
+               placeholder="Введіть пароль" 
+               required 
+               autocomplete="current-password" />
+    </div>
+    
+    <button type="submit" class="btn-submit admin-login-btn" id="login-btn">
+        <span class="btn-text">Увійти</span>
+        <span class="btn-loader" style="display: none;">
+            <svg class="spinner" width="20" height="20" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" 
+                        stroke-linecap="round" stroke-dasharray="80, 200" 
+                        stroke="#000">
+                    <animateTransform attributeName="transform" type="rotate" 
+                                      from="0 25 25" to="360 25 25" 
+                                      dur="1s" repeatCount="indefinite"/>
+                </circle>
+            </svg>
+        </span>
+    </button>
+</form>
