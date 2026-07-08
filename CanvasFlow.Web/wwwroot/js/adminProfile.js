@@ -9,6 +9,7 @@ async function loadUserProfile() {
     const profileContainer = document.getElementById('admin-profile-content');
     const loadingElement = document.getElementById('profile-loading');
     const errorElement = document.getElementById('profile-error');
+    const baseUrl = 'http://192.168.88.68:5000';
 
     if (!profileContainer) return;
 
@@ -30,7 +31,7 @@ async function loadUserProfile() {
         }
 
         // Fetch user profile data from /api/auth/me endpoint
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(`${baseUrl}/api/auth/me`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -76,28 +77,28 @@ function renderProfileCard(userData, container) {
     card.className = 'admin-profile-card';
 
     // Get status display text and class
-    const statusInfo = getStatusDisplay(userData.AccountStatus);
+    const statusInfo = getStatusDisplay(userData.accountStatus);
 
     // Build profile HTML
     card.innerHTML = `
         <div class="profile-header">
             <div class="profile-avatar">
-                <span class="avatar-icon">${getAvatarIcon(userData.Role)}</span>
+                <span class="avatar-icon">${getAvatarIcon(userData.role)}</span>
             </div>
             <div class="profile-title-section">
-                <h2 class="profile-username">${escapeHtml(userData.Username)}</h2>
-                <span class="profile-role-badge ${userData.Role === 'Admin' ? 'role-admin' : 'role-user'}">${escapeHtml(userData.Role)}</span>
+                <h2 class="profile-username">${escapeHtml(userData.username)}</h2>
+                <span class="profile-role-badge ${userData.role === 'Admin' ? 'role-admin' : 'role-user'}">${escapeHtml(userData.role)}</span>
             </div>
         </div>
 
         <div class="profile-details">
             <div class="detail-row">
                 <span class="detail-label">ID</span>
-                <span class="detail-value">${userData.Id}</span>
+                <span class="detail-value">${userData.id}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Email</span>
-                <span class="detail-value email-value">${escapeHtml(userData.Email)}</span>
+                <span class="detail-value email-value">${escapeHtml(userData.email)}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Account Status</span>
@@ -105,7 +106,7 @@ function renderProfileCard(userData, container) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">Publications</span>
-                <span class="detail-value count-value">${userData.PublicationCount}</span>
+                <span class="detail-value count-value">${userData.publicationCount}</span>
             </div>
         </div>
     `;
