@@ -1,4 +1,4 @@
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;

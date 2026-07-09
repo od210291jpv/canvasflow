@@ -1,4 +1,4 @@
-namespace CanvasFlow.Api.Models
+namespace CanvasFlow.Db.Models
 {
     public class Content
     {

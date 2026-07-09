@@ -1,8 +1,7 @@
+﻿using CanvasFlow.Db.Models;
 using Microsoft.EntityFrameworkCore;
-using CanvasFlow.Api.Models;
-using CanvasFlow.Api.Models.Enums;
 
-namespace CanvasFlow.Api.Data
+namespace CanvasFlow.Db.Data
 {
     public class ApplicationDbContext : DbContext
     {
@@ -58,7 +57,7 @@ namespace CanvasFlow.Api.Data
 
             modelBuilder.Entity<Message>()
                 .HasIndex(m => new { m.SenderId, m.RecipientId });
-            
+
             // Optional: Indexing for faster audit log lookups
             modelBuilder.Entity<AuditLog>()
                 .HasIndex(l => l.AdminUserId);

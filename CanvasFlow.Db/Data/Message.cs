@@ -1,7 +1,7 @@
 // Models/Message.cs
 using System;
 
-namespace CanvasFlow.Api.Models
+namespace CanvasFlow.Db.Models
 {
     public enum MessageType
     {

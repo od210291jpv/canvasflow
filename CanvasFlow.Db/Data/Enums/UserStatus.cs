@@ -1,4 +1,4 @@
-namespace CanvasFlow.Api.Models.Enums
+namespace CanvasFlow.Db.Models.Enums
 {
     /// <summary>
     /// Defines the possible status states for a user account.

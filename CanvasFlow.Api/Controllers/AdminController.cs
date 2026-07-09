@@ -1,12 +1,12 @@
-using CanvasFlow.Api.Data;
 using CanvasFlow.Api.DTO;
-using CanvasFlow.Api.Models.Enums;
-using CanvasFlow.Api.Services;
 using CanvasFlow.Api.Hubs;
+using CanvasFlow.Api.Services;
+using CanvasFlow.Db.Data;
+using CanvasFlow.Db.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace CanvasFlow.Api.Controllers
 {

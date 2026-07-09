@@ -1,5 +1,5 @@
 // Services/INotificationService.cs
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.SignalR;
 
 namespace CanvasFlow.Api.Services

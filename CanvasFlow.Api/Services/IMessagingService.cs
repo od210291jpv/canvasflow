@@ -1,5 +1,5 @@
 // Services/IMessagingService.cs
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Models;
 
 namespace CanvasFlow.Api.Services
 {

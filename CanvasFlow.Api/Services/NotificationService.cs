@@ -1,9 +1,8 @@
 // Services/NotificationService.cs
-using CanvasFlow.Api.Data;
-using CanvasFlow.Api.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
 using CanvasFlow.Api.Hubs;
+using CanvasFlow.Db.Data;
+using CanvasFlow.Db.Models;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CanvasFlow.Api.Services
 {

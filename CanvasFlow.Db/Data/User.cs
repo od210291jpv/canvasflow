@@ -1,7 +1,7 @@
 // Models/User.cs
-using CanvasFlow.Api.Models.Enums;
+using CanvasFlow.Db.Models.Enums;
 
-namespace CanvasFlow.Api.Models
+namespace CanvasFlow.Db.Models
 {
     public class User
     {

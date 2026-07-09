@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using CanvasFlow.Api.Services;
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using CanvasFlow.Api.DTO;
