@@ -1,7 +1,6 @@
 // Services/AuditService.cs
-using CanvasFlow.Api.Data;
-using CanvasFlow.Api.Models;
-using Microsoft.EntityFrameworkCore;
+using CanvasFlow.Db.Data;
+using CanvasFlow.Db.Models;
 
 namespace CanvasFlow.Api.Services
 {

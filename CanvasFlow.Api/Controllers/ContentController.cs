@@ -1,4 +1,4 @@
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Models;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

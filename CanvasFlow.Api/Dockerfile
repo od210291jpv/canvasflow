@@ -3,8 +3,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy project files first to leverage Docker cache for dependencies
+# We include CanvasFlow.Db because CanvasFlow.Api depends on it
+COPY ["CanvasFlow.Db/CanvasFlow.Db.csproj", "CanvasFlow.Db/"]
 COPY ["CanvasFlow.Api/CanvasFlow.Api.csproj", "CanvasFlow.Api/"]
-RUN dotnet restore "CanvasFlow.Api/CanvasFlow.Api.csproj"
+
+# Restore dependencies for both projects
+RUN dotnet restore "CanvasFlow.Db/CanvasFlow.Db.csproj" \
+    && dotnet restore "CanvasFlow.Api/CanvasFlow.Api.csproj"
 
 # Copy the rest of the source code and build
 COPY . .

@@ -28,4 +28,8 @@
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CanvasFlow.Db\CanvasFlow.Db.csproj" />
+  </ItemGroup>
+
 </Project>

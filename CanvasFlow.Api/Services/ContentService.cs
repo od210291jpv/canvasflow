@@ -1,12 +1,7 @@
-using CanvasFlow.Api.Data;
-using CanvasFlow.Api.Models;
+using CanvasFlow.Db.Data;
+using CanvasFlow.Db.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
- 
+
 namespace CanvasFlow.Api.Services
 {
     public class ContentService : IContentService

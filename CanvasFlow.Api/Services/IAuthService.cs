@@ -1,5 +1,5 @@
-using CanvasFlow.Api.Models;
-using CanvasFlow.Api.Models.Enums;
+using CanvasFlow.Db.Models;
+using CanvasFlow.Db.Models.Enums;
 using CanvasFlow.Api.DTO;
 
 namespace CanvasFlow.Api.Services

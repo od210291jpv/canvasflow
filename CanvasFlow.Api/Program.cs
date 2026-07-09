@@ -1,4 +1,4 @@
-using CanvasFlow.Api.Data;
+using CanvasFlow.Db.Data;
 using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

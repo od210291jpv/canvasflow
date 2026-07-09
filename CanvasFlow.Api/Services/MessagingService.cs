@@ -1,6 +1,6 @@
-using CanvasFlow.Api.Data;
-using CanvasFlow.Api.Models;
-using CanvasFlow.Api.Models.Enums;
+using CanvasFlow.Db.Data;
+using CanvasFlow.Db.Models;
+using CanvasFlow.Db.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CanvasFlow.Api.Services
