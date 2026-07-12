@@ -1,8 +1,5 @@
 using CanvasFlow.Db.Models;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
- 
+
 namespace CanvasFlow.Api.Services
 {
     public interface IContentService

@@ -1,11 +1,11 @@
-using CanvasFlow.Db.Models;
+using CanvasFlow.Api.DTO;
+using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
+using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using CanvasFlow.Api.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -15,22 +15,25 @@ namespace CanvasFlow.Api.Controllers
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IExternalStorageService _externalStorageService;
         private readonly IHubContext<NotificationHub> _notificationHub;
 
-        public ContentController(IContentService contentService, IHttpClientFactory httpClientFactory, IHubContext<NotificationHub> notificationHub)
+        public ContentController(
+            IContentService contentService,
+            IExternalStorageService externalStorageService,
+            IHubContext<NotificationHub> notificationHub)
         {
             _contentService = contentService;
-            _httpClientFactory = httpClientFactory;
+            _externalStorageService = externalStorageService;
             _notificationHub = notificationHub;
         }
 
         [AllowAnonymous]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed(
-            [FromQuery] int page = 1, 
-            [FromQuery] int limit = 20, 
-            [FromQuery] string tags = null)
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? tags = null)
         {
             List<string>? tagList = null;
             if (!string.IsNullOrEmpty(tags))
@@ -38,7 +41,6 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            // Pass the parsed tag list to the service
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
             return Ok(feed);
         }
@@ -64,6 +66,11 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
 
+            if (model.File == null)
+            {
+                return BadRequest(new { error = "File is missing." });
+            }
+
             try
             {
                 using var memoryStream = new MemoryStream();
@@ -73,35 +80,7 @@ namespace CanvasFlow.Api.Controllers
                 var safeExt = Path.GetExtension(model.File.FileName).ToLowerInvariant();
                 var safeFileName = $"img_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{safeExt}";
 
-                using var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.ConnectionClose = true;
-                client.DefaultRequestHeaders.ExpectContinue = false;
-
-                using var multipartFormContent = new MultipartFormDataContent();
-                var boundary = multipartFormContent.Headers.ContentType?.Parameters.FirstOrDefault(p => p.Name == "boundary");
-                if (boundary != null && boundary.Value != null)
-                {
-                    boundary.Value = boundary.Value.Replace("\"", "");
-                }
-
-                using var fileContent = new ByteArrayContent(fileBytes);
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
-                fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
-                {
-                    Name = "\"image\"",          
-                    FileName = $"\"{safeFileName}\"" 
-                };
-
-                multipartFormContent.Add(fileContent);
-                await multipartFormContent.LoadIntoBufferAsync();
-
-                var espResponse = await client.PostAsync("http://192.168.88.98/api/upload", multipartFormContent);
-
-                if (!espResponse.IsSuccessStatusCode)
-                {
-                    var espError = await espResponse.Content.ReadAsStringAsync();
-                    return BadRequest(new { error = $"ESP32 Upload Failed: {espError}" });
-                }
+                await _externalStorageService.UploadImageAsync(fileBytes, safeFileName, model.File.ContentType);
 
                 var generatedImageUrl = $"/api/content/proxy-image/{safeFileName}";
 
@@ -126,21 +105,12 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                using var client = _httpClientFactory.CreateClient();
+                var (stream, contentType) = await _externalStorageService.GetImageStreamAsync(fileName);
 
-                var espUrl = $"http://192.168.88.98/images/{fileName}";
-                var response = await client.GetAsync(espUrl);
-
-                if (!response.IsSuccessStatusCode)
+                if (stream == null)
                 {
                     return NotFound(new { error = "Image not found on ESP32." });
                 }
-
-                var stream = await response.Content.ReadAsStreamAsync();
-
-                var contentType = fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                    ? "image/png"
-                    : "image/jpeg";
 
                 return File(stream, contentType);
             }
@@ -156,15 +126,7 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                using var client = _httpClientFactory.CreateClient();
-                var response = await client.GetAsync("http://192.168.88.98/api/get_images");
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return StatusCode((int)response.StatusCode, new { error = "Failed to fetch images from ESP32" });
-                }
-
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await _externalStorageService.GetExternalImagesJsonAsync();
                 return Content(content, "application/json");
             }
             catch (Exception ex)
@@ -188,18 +150,17 @@ namespace CanvasFlow.Api.Controllers
                 return NotFound(new { error = "Content not found." });
             }
 
-            // Rule: UserId != AuthorId
             if (content.UserId == userId)
             {
                 return BadRequest(new { error = "You cannot like your own content." });
             }
 
             var success = await _contentService.LikeContentAsync(contentId, userId);
-            
+
             if (success)
             {
-                // Send real-time notification to the owner of the content
-                await _notificationHub.Clients.User(content.UserId.ToString()).SendAsync("ReceiveNotification", new {
+                await _notificationHub.Clients.User(content.UserId.ToString()).SendAsync("ReceiveNotification", new
+                {
                     Title = "New Like",
                     Content = $"Someone liked your content: {content.Title}"
                 });
@@ -217,13 +178,13 @@ namespace CanvasFlow.Api.Controllers
             {
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
-            
+
             try
             {
                 var updatedContent = await _contentService.UpdateContentAsync(
-                    contentId, 
-                    model.Title, 
-                    model.Description, 
+                    contentId,
+                    model.Title,
+                    model.Description,
                     model.Tags);
                 return Ok(updatedContent);
             }
@@ -245,9 +206,9 @@ namespace CanvasFlow.Api.Controllers
             {
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
-            
+
             var success = await _contentService.DeleteContentAsync(userId, contentId);
-            
+
             if (success)
             {
                 return NoContent();
@@ -282,21 +243,5 @@ namespace CanvasFlow.Api.Controllers
             var tags = await _contentService.GetAllTagsAsync();
             return Ok(tags);
         }
-    }
- 
-    public class UploadContentDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public IFormFile? File { get; set; }
-        public List<string> Tags { get; set; } = new List<string>();
-    }
- 
-    public class UpdateContentDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string ImageUrl { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = new List<string>();
     }
 }
