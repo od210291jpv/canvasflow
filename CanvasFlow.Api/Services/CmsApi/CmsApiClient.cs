@@ -200,12 +200,12 @@ public class CmsApiClient
     /// Get user content by user ID (int) with pagination.
     /// GET /api/Content/userContent/{userId}?page=1&pageSize=10
     /// </summary>
-    public async Task<List<ContentModel>> GetUserContentAsync(int userId, int page = 1, int pageSize = 10)
+    public async Task<ContentObjectDtoPagedResult> GetUserContentAsync(int userId, int page = 1, int pageSize = 10)
     {
         var response = await _httpClient.GetAsync($"{_baseUrl}/api/Content/userContent/{userId}?page={page}&pageSize={pageSize}");
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<ContentModel>>() 
-            ?? new List<ContentModel>();
+        return await response.Content.ReadFromJsonAsync<ContentObjectDtoPagedResult>() 
+            ?? new ContentObjectDtoPagedResult();
     }
 
     /// <summary>

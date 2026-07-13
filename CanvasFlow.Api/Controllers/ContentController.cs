@@ -77,7 +77,7 @@ namespace CanvasFlow.Api.Controllers
             }
 
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
-            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetContentsByUserIdAsync(cmsUser.User.Id, page, limit);
+            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, page, limit);
 
             //content id: user id
             Dictionary<string, string> ids = feed.Select(c => c.ImageUrl).ToDictionary(c => c.Split(":").Last(), c => c.Split(":").First());
