@@ -1,6 +1,8 @@
 using CanvasFlow.Api.DTO;
 using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
+using CanvasFlow.Api.Services.CmsApi;
+using CanvasFlow.Api.Services.CmsApi.Models;
 using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +19,9 @@ namespace CanvasFlow.Api.Controllers
         private readonly IContentService _contentService;
         private readonly IExternalStorageService _externalStorageService;
         private readonly IHubContext<NotificationHub> _notificationHub;
+        private readonly CmsApiClient _cmsApiClient;
+        private const string CmsUsername = "CanvasFlow";
+        private const string CmsPassword = "Password";
 
         public ContentController(
             IContentService contentService,
@@ -26,6 +31,8 @@ namespace CanvasFlow.Api.Controllers
             _contentService = contentService;
             _externalStorageService = externalStorageService;
             _notificationHub = notificationHub;
+            _cmsApiClient = new CmsApiClient(new HttpClient(), "http://192.168.88.68:8085"); // Replace with actual CMS API base URL
+
         }
 
         [AllowAnonymous]
@@ -73,22 +80,32 @@ namespace CanvasFlow.Api.Controllers
 
             try
             {
-                using var memoryStream = new MemoryStream();
-                await model.File.CopyToAsync(memoryStream);
-                var fileBytes = memoryStream.ToArray();
+                CmsLoginResponseDto cmsUser;
+                try
+                {
+                    cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
 
-                var safeExt = Path.GetExtension(model.File.FileName).ToLowerInvariant();
-                var safeFileName = $"img_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{safeExt}";
+                }
+                catch (HttpRequestException e) 
+                {
+                    return BadRequest(new { error = $"Failed to login to CMS API: {e.Message}" });
+                }
 
-                await _externalStorageService.UploadImageAsync(fileBytes, safeFileName, model.File.ContentType);
+                using var fileStream = model.File.OpenReadStream();
+                var fileContent = new StreamContent(fileStream);
 
-                var generatedImageUrl = $"/api/content/proxy-image/{safeFileName}";
+                ContentModel result = await _cmsApiClient.CreateContentAsync(fileContent, model.File.FileName, cmsUser.User.Id, true, model.Description, true, false );
+                
+                if(result is null)
+                {
+                    return BadRequest(new { error = "Failed to create content in CMS." });
+                }
 
                 var newContent = await _contentService.UploadContentAsync(
                     userId,
                     model.Title,
                     model.Description,
-                    generatedImageUrl,
+                    result.Path,
                     model.Tags);
 
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);

@@ -35,7 +35,7 @@ public class CmsApiClient
         
         // Store the token for subsequent requests
         _token = result.Token;
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _token);
+        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(_token);
         
         return result;
     }
@@ -98,31 +98,47 @@ public class CmsApiClient
     /// POST /api/Content (multipart/form-data)
     /// </summary>
     public async Task<ContentModel> CreateContentAsync(
-        Stream fileStream,
-        string fileName,
-        int ownerId,
-        bool enabled = true,
-        string? description = null,
-        bool isPublic = false,
-        bool isDeleted = false)
+     StreamContent fileContent, // Змінено назву для точності
+     string fileName,
+     int ownerId,
+     bool enabled = true,
+     string? description = null,
+     bool isPublic = false,
+     bool isDeleted = false)
     {
-        var content = new MultipartFormDataContent();
+        using var content = new MultipartFormDataContent();
 
-        // Add file
-        var fileContent = new StreamContent(fileStream);
-        fileContent.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/octet-stream");
+        // Встановлюємо ContentType, якщо він ще не був заданий при створенні fileContent
+        if (fileContent.Headers.ContentType == null)
+        {
+            fileContent.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/octet-stream");
+        }
+
+        // Додаємо готовий StreamContent до форми
         content.Add(fileContent, "File", fileName);
 
-        // Add other fields
-        content.Add(new StringContent(ownerId.ToString()), "OwnerId");
-        content.Add(new StringContent(enabled.ToString().ToLowerInvariant()), "Enabled");
-        content.Add(new StringContent(description ?? string.Empty), "Description");
-        content.Add(new StringContent(isPublic.ToString().ToLowerInvariant()), "IsPublic");
-        content.Add(new StringContent(isDeleted.ToString().ToLowerInvariant()), "IsDeleted");
+        void AddFormField(string name, string value)
+        {
+            var stringContent = new StringContent(value);
+            stringContent.Headers.ContentType = null;
+            content.Add(stringContent, name);
+        }
+
+        AddFormField("OwnerId", ownerId.ToString());
+        AddFormField("Enabled", enabled.ToString().ToLowerInvariant());
+        AddFormField("IsPublic", isPublic.ToString().ToLowerInvariant());
+        AddFormField("IsDeleted", isDeleted.ToString().ToLowerInvariant());
+
+        if (description != null)
+        {
+            AddFormField("Description", description);
+        }
 
         var response = await _httpClient.PostAsync($"{_baseUrl}/api/Content", content);
+
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<ContentModel>() 
+
+        return await response.Content.ReadFromJsonAsync<ContentModel>()
             ?? throw new InvalidOperationException("Failed to deserialize created content.");
     }
 

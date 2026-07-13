@@ -6,29 +6,29 @@ namespace CanvasFlow.Api.Services
 {
     public class ContentService : IContentService
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IAuditService _auditService;
+        protected readonly ApplicationDbContext Context;
+        protected readonly IAuditService AuditService;
  
         public ContentService(ApplicationDbContext context, IAuditService auditService)
         {
-            _context = context;
-            _auditService = auditService;
+            Context = context;
+            AuditService = auditService;
         }
  
-        public async Task<Content> GetContentByIdAsync(int contentId)
+        public virtual async Task<Content> GetContentByIdAsync(int contentId)
         {
-            return await _context.Contents
+            return await Context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
         }
  
-        public async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null)
+        public virtual async Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
  
-            IQueryable<Content> query = _context.Contents
+            IQueryable<Content> query = Context.Contents
                 .Include(c => c.User)
                 .Include(c => c.Tags)
                 .Where(c => !c.IsDeleted && c.IsPublished);
@@ -36,7 +36,7 @@ namespace CanvasFlow.Api.Services
             if (tags != null && tags.Any())
             {
                 // AND intersection: content must have ALL provided tags
-                var tagIds = await _context.Tags
+                var tagIds = await Context.Tags
                     .Where(t => tags.Contains(t.Name))
                     .Select(t => t.Id)
                     .ToListAsync();
@@ -60,7 +60,7 @@ namespace CanvasFlow.Api.Services
                 .ToListAsync();
         }
  
-        public async Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags)
+        public virtual async Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags)
         {
             var normalizedTags = NormalizeTags(tags);
  
@@ -76,7 +76,7 @@ namespace CanvasFlow.Api.Services
  
             if (normalizedTags.Any())
             {
-                var existingTags = await _context.Tags
+                var existingTags = await Context.Tags
                     .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
  
@@ -87,25 +87,25 @@ namespace CanvasFlow.Api.Services
                 }
             }
  
-            _context.Contents.Add(content);
-            await _context.SaveChangesAsync();
+            Context.Contents.Add(content);
+            await Context.SaveChangesAsync();
  
             return content;
         }
  
-        public async Task<bool> LikeContentAsync(int contentId, int userId)
+        public virtual async Task<bool> LikeContentAsync(int contentId, int userId)
         {
             // Use ExecuteUpdateAsync for atomic increment to prevent race conditions
-            int rowsAffected = await _context.Contents
+            int rowsAffected = await Context.Contents
                 .Where(c => c.Id == contentId)
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.LikeCount, c => c.LikeCount + 1));
  
             return rowsAffected > 0;
         }
  
-        public async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)
+        public virtual async Task<Content> UpdateContentAsync(int contentId, string title, string description, List<string> tags)
         {
-            var content = await _context.Contents
+            var content = await Context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
  
@@ -122,7 +122,7 @@ namespace CanvasFlow.Api.Services
  
             if (normalizedTags.Any())
             {
-                var existingTags = await _context.Tags
+                var existingTags = await Context.Tags
                     .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
  
@@ -133,14 +133,14 @@ namespace CanvasFlow.Api.Services
                 }
             }
  
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
  
             return content;
         }
  
-        public async Task<Content> ModerateContentAsync(int adminUserId, int contentId, bool isPublished)
+        public virtual async Task<Content> ModerateContentAsync(int adminUserId, int contentId, bool isPublished)
         {
-            var content = await _context.Contents.FindAsync(contentId);
+            var content = await Context.Contents.FindAsync(contentId);
             if (content == null)
             {
                 throw new KeyNotFoundException("Content not found.");
@@ -148,9 +148,9 @@ namespace CanvasFlow.Api.Services
  
             content.IsPublished = isPublished;
  
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
  
-            await _auditService.LogActionAsync(
+            await AuditService.LogActionAsync(
                 adminUserId,
                 "Content Moderation",
                 "Content",
@@ -161,9 +161,9 @@ namespace CanvasFlow.Api.Services
             return content;
         }
  
-        public async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
+        public virtual async Task<Content> EditContentAsAdminAsync(int adminUserId, int contentId, string newTitle, string newDescription, List<string> newTags)
         {
-            var content = await _context.Contents
+            var content = await Context.Contents
                 .Include(c => c.Tags)
                 .FirstOrDefaultAsync(c => c.Id == contentId);
  
@@ -181,7 +181,7 @@ namespace CanvasFlow.Api.Services
  
             if (normalizedTags.Any())
             {
-                var existingTags = await _context.Tags
+                var existingTags = await Context.Tags
                     .Where(t => normalizedTags.Contains(t.Name))
                     .ToListAsync();
  
@@ -198,9 +198,9 @@ namespace CanvasFlow.Api.Services
                 }
             }
  
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
  
-            await _auditService.LogActionAsync(
+            await AuditService.LogActionAsync(
                 adminUserId,
                 "Content Edited by Admin",
                 "Content",
@@ -211,9 +211,9 @@ namespace CanvasFlow.Api.Services
             return content;
         }
  
-        public async Task<List<Content>> GetContentByUserIdAsync(int userId)
+        public virtual async Task<List<Content>> GetContentByUserIdAsync(int userId)
         {
-            var result = await _context.Contents
+            var result = await Context.Contents
                 .Include(c => c.Tags)
                 .Where(c => c.UserId == userId && !c.IsDeleted)
                 .OrderByDescending(c => c.UploadDate)
@@ -221,9 +221,9 @@ namespace CanvasFlow.Api.Services
             return result;
         }
 
-        public async Task<bool> DeleteContentAsync(int adminUserId, int contentId)
+        public virtual async Task<bool> DeleteContentAsync(int adminUserId, int contentId)
         {
-            var content = await _context.Contents.FindAsync(contentId);
+            var content = await Context.Contents.FindAsync(contentId);
             if (content == null)
             {
                 throw new KeyNotFoundException("Content not found.");
@@ -231,9 +231,9 @@ namespace CanvasFlow.Api.Services
 
             content.IsDeleted = true;
 
-            int result = await _context.SaveChangesAsync();
+            int result = await Context.SaveChangesAsync();
 
-            await _auditService.LogActionAsync(
+            await AuditService.LogActionAsync(
                 adminUserId,
                 "Content Deletion",
                 "Content",
@@ -244,16 +244,16 @@ namespace CanvasFlow.Api.Services
             return result > 0;
         }
 
-        public async Task<List<string>> GetAllTagsAsync()
+        public virtual async Task<List<string>> GetAllTagsAsync()
         {
-            return await _context.Tags
+            return await Context.Tags
                 .Select(t => t.Name)
                 .Distinct()
                 .OrderBy(n => n)
                 .ToListAsync();
         }
  
-        private List<string> NormalizeTags(List<string> tags, int maxLimit = 10)
+        protected List<string> NormalizeTags(List<string> tags, int maxLimit = 10)
         {
             if (tags == null || !tags.Any()) return new List<string>();
  
