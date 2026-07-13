@@ -6,7 +6,9 @@ using CanvasFlow.Api.Services.CmsApi.Models;
 using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
@@ -48,19 +50,81 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
+            List<Content> feed;
+            try
+            {
+                feed = await MapContent(page, limit, tagList);
+            }
+            catch (HttpRequestException ex) 
+            {
+                return Unauthorized($"Failed to fetch content feed: {ex.Message}");
+            }
+
             return Ok(feed);
+        }
+
+        private async Task<List<Content>> MapContent(int page, int limit, List<string>? tagList)
+        {
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
+            List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
+            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetContentsByUserIdAsync(cmsUser.User.Id, page, limit);
+
+            //content id: user id
+            Dictionary<string, string> ids = feed.Select(c => c.ImageUrl).ToDictionary(c => c.Split(":").Last(), c => c.Split(":").First());
+            Dictionary<string, string> targetUrls = cmsContent.Items.Where(c => ids.ContainsKey(c.Id.ToString())).ToDictionary(c => c.Id.ToString(), c => c.Path);
+
+            foreach (var cmsitem in cmsContent.Items) 
+            {
+                _ = ids.TryGetValue(cmsitem.Id.ToString(), out var userId) ? userId : null;
+                if (userId is not null) 
+                {
+                    feed.SingleOrDefault(i => i.ImageUrl == $"{userId}:{cmsitem.Id}").ImageUrl = cmsitem.Path;
+                }
+            }
+
+            return feed;
         }
 
         [HttpGet("get/{contentId}")]
         public async Task<IActionResult> GetContentById(int contentId)
         {
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
             var content = await _contentService.GetContentByIdAsync(contentId);
 
             if (content == null)
             {
                 return NotFound(new { error = "Content not found." });
             }
+
+            ContentModel cmsContent = await _cmsApiClient.GetContentByContentIdAsync(int.Parse(content.ImageUrl.Split(":").Last()));
+
+            if (cmsContent == null)
+            {
+                return NotFound(new { error = "Content not found in CMS" });
+            }
+
+            content.ImageUrl = cmsContent.Path;
+
             return Ok(content);
         }
 
@@ -94,9 +158,9 @@ namespace CanvasFlow.Api.Controllers
                 using var fileStream = model.File.OpenReadStream();
                 var fileContent = new StreamContent(fileStream);
 
-                ContentModel result = await _cmsApiClient.CreateContentAsync(fileContent, model.File.FileName, cmsUser.User.Id, true, model.Description, true, false );
+                ContentModel cmsContentSubmitted = await _cmsApiClient.CreateContentAsync(fileContent, model.File.FileName, cmsUser.User.Id, true, model.Description, true, false );
                 
-                if(result is null)
+                if(cmsContentSubmitted is null)
                 {
                     return BadRequest(new { error = "Failed to create content in CMS." });
                 }
@@ -105,7 +169,7 @@ namespace CanvasFlow.Api.Controllers
                     userId,
                     model.Title,
                     model.Description,
-                    result.Path,
+                    $"{userId}:{cmsContentSubmitted.Id}",
                     model.Tags);
 
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);

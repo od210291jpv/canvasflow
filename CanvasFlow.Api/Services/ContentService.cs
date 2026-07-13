@@ -35,7 +35,6 @@ namespace CanvasFlow.Api.Services
  
             if (tags != null && tags.Any())
             {
-                // AND intersection: content must have ALL provided tags
                 var tagIds = await Context.Tags
                     .Where(t => tags.Contains(t.Name))
                     .Select(t => t.Id)
@@ -43,13 +42,11 @@ namespace CanvasFlow.Api.Services
  
                 if (tagIds.Any())
                 {
-                    // Filter contents that contain all the required tag IDs
                     query = query.Where(c => c.Tags.Any(t => tagIds.Contains(t.Id)) && 
                                              c.Tags.Count(t => tagIds.Contains(t.Id)) == tagIds.Count);
                 }
                 else
                 {
-                    // If none of the provided tags exist in DB, return empty list
                     return new List<Content>();
                 }
             }
@@ -95,7 +92,6 @@ namespace CanvasFlow.Api.Services
  
         public virtual async Task<bool> LikeContentAsync(int contentId, int userId)
         {
-            // Use ExecuteUpdateAsync for atomic increment to prevent race conditions
             int rowsAffected = await Context.Contents
                 .Where(c => c.Id == contentId)
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.LikeCount, c => c.LikeCount + 1));

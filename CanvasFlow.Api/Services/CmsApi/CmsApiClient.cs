@@ -85,7 +85,7 @@ public class CmsApiClient
     /// Get a single content object by ID.
     /// GET /api/Content/{id}
     /// </summary>
-    public async Task<ContentModel> GetContentAsync(int id)
+    public async Task<ContentModel> GetContentByContentIdAsync(int id)
     {
         var response = await _httpClient.GetAsync($"{_baseUrl}/api/Content/{id}");
         response.EnsureSuccessStatusCode();
@@ -188,12 +188,12 @@ public class CmsApiClient
     /// Get content objects by user ID (string).
     /// GET /api/Content/user/{userId}?page=1&pageSize=10
     /// </summary>
-    public async Task<List<ContentModel>> GetContentsByUserIdAsync(string userId, int page = 1, int pageSize = 10)
+    public async Task<ContentObjectDtoPagedResult> GetContentsByUserIdAsync(int userId, int page = 1, int pageSize = 10)
     {
         var response = await _httpClient.GetAsync($"{_baseUrl}/api/Content/user/{userId}?page={page}&pageSize={pageSize}");
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<ContentModel>>() 
-            ?? new List<ContentModel>();
+        return await response.Content.ReadFromJsonAsync<ContentObjectDtoPagedResult>() 
+            ?? new ContentObjectDtoPagedResult();
     }
 
     /// <summary>
