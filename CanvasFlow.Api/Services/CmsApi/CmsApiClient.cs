@@ -5,12 +5,13 @@ namespace CanvasFlow.Api.Services.CmsApi;
 
 /// <summary>
 /// C# client for the Content CMS API (http://192.168.88.68:8085/swagger/v1/swagger.json)
-/// Covers all content-related endpoints across the CMS API.
+/// Covers all content-related endpoints across the CMS API with Bearer token authorization.
 /// </summary>
 public class CmsApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
+    private string? _token;
 
     public CmsApiClient(HttpClient httpClient, string baseUrl)
     {
@@ -18,11 +19,59 @@ public class CmsApiClient
         _baseUrl = baseUrl.TrimEnd('/');
     }
 
+    #region Authorization
+
+    /// <summary>
+    /// Authenticate with the CMS API and store the Bearer token.
+    /// POST /api/Auth/login (body: LoginRequestDto)
+    /// </summary>
+    public async Task<CmsLoginResponseDto> LoginAsync(string username, string password)
+    {
+        var loginRequest = new LoginRequestDto { Username = username, Password = password };
+        var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/Auth/login", loginRequest);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<CmsLoginResponseDto>() 
+            ?? throw new InvalidOperationException("Failed to deserialize login response.");
+        
+        // Store the token for subsequent requests
+        _token = result.Token;
+        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _token);
+        
+        return result;
+    }
+
+    /// <summary>
+    /// Logout from the CMS API and clear the stored token.
+    /// POST /api/Auth/logout
+    /// </summary>
+    public async Task LogoutAsync()
+    {
+        if (_httpClient.DefaultRequestHeaders.Contains("Authorization"))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = null;
+        }
+        _token = null;
+        
+        await _httpClient.PostAsync($"{_baseUrl}/api/Auth/logout", null);
+    }
+
+    /// <summary>
+    /// Set the Bearer token manually (useful if token is obtained externally).
+    /// </summary>
+    public void SetToken(string token)
+    {
+        _token = token;
+        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    #endregion
+
     #region Content Endpoints
 
     /// <summary>
     /// Get paginated list of all content objects.
     /// GET /api/Content?page=1&pageSize=20
+    /// Requires admin role.
     /// </summary>
     public async Task<ContentObjectDtoPagedResult> GetContentsAsync(int page = 1, int pageSize = 20)
     {
