@@ -444,36 +444,129 @@
     to { transform: rotate(360deg); }
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .glass-card {
-        padding: 25px;
-    }
-    
-    .admin-top-nav {
-        flex-direction: column;
-        gap: 12px;
+/* ============================================================
+   RESPONSIVE — Tablet & Mobile
+   ============================================================ */
+
+/* ---- Tablet (≤ 900px) ---- */
+@media (max-width: 900px) {
+    .admin-dashboard-container {
         padding: 16px;
     }
-    
-    .admin-top-nav-right {
-        width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
+
+    .admin-main-card {
+        padding: 28px 20px !important;
     }
-    
-    .admin-nav-link {
-        padding: 8px 14px;
-        font-size: 0.85rem;
-    }
-    
+
     .admin-nav-group {
-        flex-direction: column;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
     }
-    
-    .admin-table thead th,
-    .admin-table tbody td {
-        padding: 10px 12px;
-        font-size: 0.8rem;
+
+    .admin-nav-group::-webkit-scrollbar { display: none; }
+
+    .admin-nav-btn {
+        flex: 0 0 auto;
+        padding: 11px 18px;
+        font-size: 0.88rem;
     }
 }
+
+/* ---- Mobile (≤ 680px) ---- */
+@media (max-width: 680px) {
+    /* Whole page padding */
+    .admin-dashboard-container {
+        padding: 10px 10px 24px;
+    }
+
+    /* Top nav: stack logo above links */
+    .admin-top-nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        margin-bottom: 14px;
+    }
+
+    .admin-top-nav-left { width: 100%; }
+
+    .admin-logo { font-size: 1.25rem; }
+
+    .admin-top-nav-right {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .admin-nav-link {
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        gap: 6px;
+    }
+
+    .admin-nav-link .icon { font-size: 1rem; }
+
+    /* Main card */
+    .glass-card {
+        padding: 20px 14px !important;
+        border-radius: 14px !important;
+    }
+
+    /* Tab buttons — horizontal scroll row */
+    .admin-nav-group {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding-bottom: 6px;
+        scrollbar-width: none;
+    }
+
+    .admin-nav-group::-webkit-scrollbar { display: none; }
+
+    .admin-nav-btn {
+        flex: 0 0 auto;
+        padding: 10px 16px;
+        font-size: 0.84rem;
+        gap: 7px;
+        min-width: 120px;
+    }
+
+    /* Table: full horizontal scroll */
+    .glass-table-wrapper {
+        border-radius: 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-table {
+        min-width: 500px; /* Prevents collapse on very small screens */
+    }
+
+    .admin-table thead th {
+        padding: 10px 12px;
+        font-size: 0.76rem;
+        white-space: nowrap;
+    }
+
+    .admin-table tbody td {
+        padding: 10px 12px;
+        font-size: 0.82rem;
+    }
+
+    /* Header text */
+    .admin-title { font-size: 1.35rem; }
+    .admin-subtitle { font-size: 0.85rem; }
+
+    /* Buttons in table rows */
+    .btn { padding: 6px 12px; font-size: 0.78rem; }
+    .btn-sm { padding: 5px 9px; font-size: 0.75rem; }
+}
+
