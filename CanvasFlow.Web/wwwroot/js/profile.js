@@ -455,7 +455,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Feed Loading Logic
     async function loadFeed(page = 1, tags = []) {
-        feedContent.innerHTML = '<div class="loading-spinner">Loading feed...</div>';
+        // Show skeleton loader while fetching
+        feedContent.innerHTML = `
+            <div class="skeleton-feed">
+                ${[1,2,3].map(() => `
+                <div class="skeleton-item">
+                    <div class="skeleton-header">
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-meta">
+                            <div class="skeleton-line w-60"></div>
+                            <div class="skeleton-line w-40"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-line w-80"></div>
+                    <div class="skeleton-line w-full" style="margin-top:8px;"></div>
+                </div>`).join('')}
+            </div>`;
         paginationControls.innerHTML = '';
         feedTitle.textContent = 'Community Feed';
 
@@ -470,17 +486,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (response.ok) {
                 displayFeed(data);
-                renderPagination(data.totalPages || 1, page); // Fallback to 1 if missing
+                renderPagination(data.totalPages || 1, page);
             } else {
-                feedContent.innerHTML = `<div class="alert alert-error" style="color: var(--error-color);">Error loading feed: ${data.error || 'Unknown error.'}</div>`;
+                feedContent.innerHTML = `<div class="feed-error-state">⚠️ Error loading feed: ${data.error || 'Unknown error.'}</div>`;
             }
         } catch (error) {
             console.error("Fetch error:", error);
-            feedContent.innerHTML = '<div class="alert alert-error" style="color: var(--error-color);">Could not connect to the feed service. Please try again later.</div>';
+            feedContent.innerHTML = '<div class="feed-error-state">⚠️ Could not connect to the feed service. Please try again later.</div>';
         }
     }
 
     function displayFeed(content) {
+        if (!content || content.length === 0) {
+            feedContent.innerHTML = `
+                <div class="feed-empty-state">
+                    <div class="feed-empty-icon">🌌</div>
+                    <p>No posts here yet. Be the first to share something!</p>
+                </div>`;
+            return;
+        }
+
         let html = '';
         content.forEach(item => {
             const desc = item.Description || item.description || '';
@@ -489,60 +514,90 @@ document.addEventListener('DOMContentLoaded', function () {
             const author = (item.User && item.User.Username) || (item.user && item.user.username) || 'Unknown';
             const authorId = item.UserId || item.userId;
             const authorInitial = author.charAt(0).toUpperCase();
+            const likeCount = item.LikeCount || item.likeCount || 0;
+            const contentId = item.Id || item.id;
 
-            let finalImageUrl = getSafeImageUrl(item);;
-
-            const messageBtn = (authorId !== currentUserId)
-                ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">💬 Message</button>`
+            const finalImageUrl = getSafeImageUrl(item);
+            const imageHtml = finalImageUrl
+                ? `<div class="feed-media-wrapper">
+                       <img src="${finalImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
+                   </div>`
                 : '';
+
+            // Build in-card tag chips
+            const rawTags = item.Tags || item.tags || [];
+            const tagChipsHtml = rawTags.length > 0
+                ? `<div class="feed-item-tags">${rawTags.map(t => {
+                       const name = typeof t === 'string' ? t : (t.Name || t.name || '');
+                       return name ? `<span class="feed-tag-chip">#${name}</span>` : '';
+                   }).join('')}</div>`
+                : '';
+
+            const messageBtnHtml = (authorId !== currentUserId)
+                ? `<button class="btn-message" onclick="startChat(${authorId}, '${author}')">
+                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                       Message
+                   </button>`
+                : '';
+
+            const dateStr = uploadDate ? new Date(uploadDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
             html += `
             <div class="feed-item">
-                <div class="feed-header">
-                    <div class="feed-avatar-placeholder">${authorInitial}</div>
-                    <div class="feed-info">
-                        <h4 class="feed-title">${title}</h4>
-                        <p class="feed-author">By ${author} on ${new Date(uploadDate).toLocaleDateString()}</p>
+                <div class="feed-item-header">
+                    <div class="feed-author-block">
+                        <div class="feed-avatar">${authorInitial}</div>
+                        <div class="feed-author-meta">
+                            <h4>${author}</h4>
+                            <p class="feed-author-date">${dateStr}</p>
+                        </div>
                     </div>
+                    <button class="feed-item-more" title="More options">···</button>
                 </div>
-                <div class="feed-media">
-                    <img src="${finalImageUrl}" alt="${title}" class="feed-media-img" loading="lazy">
+                ${imageHtml}
+                <div class="feed-item-body">
+                    <p class="feed-item-title">${title}</p>
+                    ${desc ? `<p class="feed-item-desc">${desc}</p>` : ''}
                 </div>
-                <div class="feed-body">
-                    <p>${desc}</p>
-                </div>
+                ${tagChipsHtml}
                 <div class="feed-actions">
-                    <button class="btn-like" data-content-id="${item.Id || item.id}">❤️ Like (${item.LikeCount || item.likeCount || 0})</button>
-                    ${messageBtn}
+                    <button class="btn-like" data-content-id="${contentId}">
+                        <span class="like-icon">♥</span>
+                        Like &nbsp;<span class="like-count">${likeCount}</span>
+                    </button>
+                    ${messageBtnHtml}
+                    <div class="feed-actions-spacer"></div>
                 </div>
-            </div>
-        `;
+            </div>`;
         });
         feedContent.innerHTML = html;
     }
 
     function renderPagination(totalPages, currentPage) {
-        if (totalPages <= 1) return; // Hide if only 1 page
+        if (totalPages <= 1) return;
 
         let paginationHtml = '';
         const maxPagesToShow = 5;
         const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
         const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
 
-        paginationHtml += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Previous</button>`;
-        paginationHtml += `<button class="pagination-btn ${currentPage === 1 ? 'active' : ''}" data-page="1" ${currentPage === 1 ? 'disabled' : ''}>1</button>`;
+        paginationHtml += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>&#8592; Prev</button>`;
+
+        if (startPage > 1) {
+            paginationHtml += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (startPage > 2) paginationHtml += `<span style="color:rgba(255,255,255,0.3); align-self:center;">…</span>`;
+        }
 
         for (let i = startPage; i <= endPage; i++) {
-            if (i !== 1 && i !== totalPages) {
-                paginationHtml += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-            }
+            paginationHtml += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}" ${i === currentPage ? 'disabled' : ''}>${i}</button>`;
         }
 
-        if (totalPages > 1) {
-            paginationHtml += `<button class="pagination-btn ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}" ${currentPage === totalPages ? 'disabled' : ''}>${totalPages}</button>`;
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) paginationHtml += `<span style="color:rgba(255,255,255,0.3); align-self:center;">…</span>`;
+            paginationHtml += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
         }
 
-        paginationHtml += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next &raquo;</button>`;
+        paginationHtml += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next &#8594;</button>`;
 
         paginationControls.innerHTML = paginationHtml;
     }

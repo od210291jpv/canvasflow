@@ -1,19 +1,62 @@
-<link rel="stylesheet" href="~/css/tag-filter.css">
+<link rel="stylesheet" href="~/css/tag-filter.css" asp-append-version="true">
+<link rel="stylesheet" href="~/css/feed.css" asp-append-version="true">
+
 <div id="feed-container">
     <div class="glass-card feed-card">
-        <h3 id="feed-title">Welcome to the Community Feed</h3>
-        
+
+        <!-- ── Feed Header Bar ── -->
+        <div class="feed-header-bar">
+            <div class="feed-header-left">
+                <div class="feed-header-icon">📡</div>
+                <h3 id="feed-title">Community Feed</h3>
+            </div>
+            <div class="feed-live-badge">
+                <span class="live-dot"></span>
+                Live
+            </div>
+        </div>
+
+        <!-- ── Tag Filter Bar ── -->
         <div id="tag-filter-container" class="tag-filter-container">
-            <span class="filter-label">Filter by:</span>
+            <span class="filter-label">Filter</span>
             <div id="tag-chips" class="tag-chips">
-                <!-- Tags will be populated here dynamically -->
+                <!-- Tags populated by JS -->
                 <button class="tag-chip active" data-tag="">All</button>
             </div>
         </div>
 
+        <!-- ── Feed Items ── -->
         <div id="feed-content">
-            <p class="placeholder-text">Loading the latest community activity...</p>
+            <!-- Skeleton loader shown before JS kicks in -->
+            <div class="skeleton-feed">
+                <div class="skeleton-item">
+                    <div class="skeleton-header">
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-meta">
+                            <div class="skeleton-line w-60"></div>
+                            <div class="skeleton-line w-40"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-line w-80"></div>
+                    <div class="skeleton-line w-full" style="margin-top:8px;"></div>
+                </div>
+                <div class="skeleton-item">
+                    <div class="skeleton-header">
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-meta">
+                            <div class="skeleton-line w-60"></div>
+                            <div class="skeleton-line w-40"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-line w-80"></div>
+                </div>
+            </div>
         </div>
+
+        <!-- ── Pagination ── -->
         <div id="pagination-controls" class="pagination-controls"></div>
+
     </div>
 </div>
