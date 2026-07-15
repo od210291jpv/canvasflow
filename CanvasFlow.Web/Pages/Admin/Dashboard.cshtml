@@ -49,6 +49,19 @@
         <div class="admin-content-area">
             <!-- Users Moderation Section -->
             <div id="section-users" class="admin-tab-section active">
+
+                <!-- Stats bar — populated by JS -->
+                <div id="user-stats-bar" class="user-stats-bar"></div>
+
+                <!-- Search -->
+                <div class="user-toolbar">
+                    <div class="user-search-wrap">
+                        <span class="user-search-icon">🔍</span>
+                        <input type="text" id="user-search" class="user-search-input"
+                               placeholder="Search by name, email or ID…" autocomplete="off" />
+                    </div>
+                </div>
+
                 <div class="glass-table-wrapper">
                     <table class="admin-table" id="usersTable">
                         <thead>
@@ -56,6 +69,7 @@
                                 <th>ID</th>
                                 <th>User</th>
                                 <th>Status</th>
+                                <th>Role</th>
                                 <th class="text-right">Actions</th>
                             </tr>
                         </thead>

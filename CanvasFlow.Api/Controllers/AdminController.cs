@@ -28,6 +28,34 @@ namespace CanvasFlow.Api.Controllers
             _notificationHub = notificationHub;
         }
 
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers([FromQuery] string? status = null)
+        {
+            var query = _context.Users.Where(u => !u.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(status) &&
+                Enum.TryParse<CanvasFlow.Db.Models.Enums.UserStatus>(status, ignoreCase: true, out var parsedStatus))
+            {
+                query = query.Where(u => u.AccountStatus == parsedStatus);
+            }
+
+            var users = await query
+                .OrderBy(u => u.AccountStatus)   // Pending first, then Active, Blocked
+                .ThenBy(u => u.Id)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    u.Email,
+                    u.Role,
+                    AccountStatus = u.AccountStatus.ToString(),
+                    u.PublicationCount
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
         [HttpPost("user/status")]
         public async Task<IActionResult> UpdateUserStatus([FromQuery] int targetUserId, [FromBody] UserStatus newStatus)
         {
