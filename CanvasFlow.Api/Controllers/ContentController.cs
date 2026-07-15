@@ -77,7 +77,7 @@ namespace CanvasFlow.Api.Controllers
             }
 
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
-            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, page, limit);
+            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, page, 10000);
 
             //content id: user id
             Dictionary<string, string> ids = feed.Select(c => c.ImageUrl).ToDictionary(c => c.Split(":").Last(), c => c.Split(":").First());
@@ -335,7 +335,7 @@ namespace CanvasFlow.Api.Controllers
             var myContent = await _contentService.GetContentByUserIdAsync(userId);
 
             // Resolve real image URLs from CMS for each content item
-            var cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 100);
+            var cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 10000);
 
             // Build a lookup: cmsItemId -> cmsPath
             var cmsPathById = cmsContent.Items

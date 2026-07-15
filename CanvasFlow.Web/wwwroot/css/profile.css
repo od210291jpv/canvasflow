@@ -732,9 +732,6 @@ body {
     50%       { opacity: 1; }
 }
 
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
 @media (max-width: 900px) {
     .profile-layout-container { flex-direction: column; align-items: stretch; padding: 20px 14px; }
     .profile-card-wrapper { flex: auto; max-width: 100%; position: static; animation: none; }
@@ -743,4 +740,116 @@ body {
     .messages-layout { flex-direction: column; height: auto; }
     .inbox-pane { flex: none; border-right: none; border-bottom: 1px solid var(--glass-border); padding-right: 0; padding-bottom: 14px; }
     .chat-history { height: 280px; }
+
+    /* Sub-nav wraps on narrow screens */
+    .sub-nav-links { flex-wrap: wrap; }
+    .btn-sub-nav   { flex: 1 1 auto; text-align: center; }
+}
+
+/* ============================================================
+   PUBLICATIONS TABLE — MOBILE CARD LAYOUT
+   ============================================================ */
+@media (max-width: 700px) {
+
+    /* Hide the desktop thead */
+    .publications-table thead { display: none; }
+
+    /* Turn the table itself into a block container */
+    .publications-table,
+    .publications-table tbody { display: block; width: 100%; }
+
+    /* Each row becomes a card */
+    .publications-table tr {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: none;
+        position: relative;
+    }
+
+    .publications-table tr:last-child { border-bottom: none; }
+
+    /* All cells become block by default — we'll position them */
+    .publications-table td {
+        display: block;
+        border: none;
+        padding: 0;
+        font-size: 0.88rem;
+    }
+
+    /* ── Thumbnail cell: fixed left column ── */
+    .publications-table td:nth-child(1) {
+        flex: 0 0 64px;
+    }
+
+    .publications-table td:nth-child(1) img {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 10px;
+        display: block;
+    }
+
+    /* ── Metadata cells: flex column on the right ── */
+    .publications-table td:nth-child(2),
+    .publications-table td:nth-child(3),
+    .publications-table td:nth-child(4),
+    .publications-table td:nth-child(5) {
+        flex: 1 1 0;
+    }
+
+    /* Wrap cols 2-5 into a single right column */
+    .publications-table tr {
+        flex-wrap: wrap;
+    }
+
+    .publications-table td:nth-child(1) {
+        /* thumbnail stays on its own row-start, full height */
+        align-self: flex-start;
+    }
+
+    /* Title */
+    .publications-table td:nth-child(2) {
+        font-weight: 600;
+        color: var(--text-color);
+        font-size: 0.92rem;
+        width: calc(100% - 78px); /* remaining width after thumb + gap */
+        flex: 0 0 calc(100% - 78px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Date + Likes — inline row below title */
+    .publications-table td:nth-child(3),
+    .publications-table td:nth-child(4) {
+        flex: 0 0 auto;
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        margin-left: 78px; /* align under title */
+    }
+
+    .publications-table td:nth-child(3)::before { content: '📅 '; }
+    .publications-table td:nth-child(4)::before { content: '♥ '; }
+
+    /* Separate date and likes with a bullet */
+    .publications-table td:nth-child(3) { margin-right: 12px; }
+
+    /* Actions — full-width row at the bottom of the card */
+    .publications-table td:nth-child(5) {
+        flex: 0 0 100%;
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .publications-table td:nth-child(5) .action-btn {
+        flex: 1;
+        text-align: center;
+        margin-right: 0;
+        padding: 7px 10px;
+        font-size: 0.82rem;
+    }
 }

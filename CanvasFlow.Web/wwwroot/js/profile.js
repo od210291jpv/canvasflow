@@ -494,6 +494,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (response.ok) {
                 displayFeed(data);
                 renderPagination(data.totalPages || 1, page);
+                // Rebuild tag chips from what is actually in the current feed page
+                renderTagsFromFeed(data, tags.length > 0 ? tags[0] : '');
             } else {
                 feedContent.innerHTML = `<div class="feed-error-state">⚠️ Error loading feed: ${data.error || 'Unknown error.'}</div>`;
             }
@@ -609,55 +611,40 @@ document.addEventListener('DOMContentLoaded', function () {
         paginationControls.innerHTML = paginationHtml;
     }
 
-    // Tag Filter Logic (Merged from tag-filter.js)
-    async function initTags() {
+    // Tag Filter Logic — chips derived from the current feed response
+    function renderTagsFromFeed(feedItems, activeTag) {
         if (!tagChipsContainer) return;
-        try {
-            const response = await fetch(`${baseUrl}/api/content/tags`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+
+        // Collect unique tag names that appear in the current page
+        const seen = new Set();
+        feedItems.forEach(item => {
+            const rawTags = item.Tags || item.tags || [];
+            rawTags.forEach(t => {
+                const name = typeof t === 'string' ? t : (t.Name || t.name || '');
+                if (name) seen.add(name);
             });
+        });
 
-            if (!response.ok) throw new Error('Failed to fetch tags');
-
-            const tags = await response.json(); // Expecting an array of strings or objects with a 'Name' property
-            renderTagChips(tags);
-        } catch (error) {
-            console.error('Error fetching tags:', error);
-            // Fallback if API fails
-            renderTagChips(['General', 'Tech', 'News', 'Art', 'Gaming']);
-        }
-    }
-
-    function renderTagChips(tags) {
-        if (!tagChipsContainer) return;
         tagChipsContainer.innerHTML = '';
-        
-        // Add "All" button first
+
+        // "All" chip — active when no tag filter is applied
         const allBtn = document.createElement('button');
-        allBtn.className = 'tag-chip active';
+        allBtn.className = 'tag-chip' + (activeTag === '' ? ' active' : '');
         allBtn.textContent = 'All';
         allBtn.setAttribute('data-tag', '');
         tagChipsContainer.appendChild(allBtn);
 
-        // Add dynamic tags
-        tags.forEach((tag, index) => {
-            // Handle both string and object responses from API
-            const tagName = typeof tag === 'string' ? tag : (tag.Name || tag.title || tag);
-            if (tagName && tagName !== 'All') {
-                const btn = document.createElement('button');
-                btn.className = 'tag-chip';
-                btn.textContent = tagName;
-                btn.setAttribute('data-tag', tagName);
-                tagChipsContainer.appendChild(btn);
-            }
+        // One chip per unique tag found in this feed page
+        [...seen].sort().forEach(tagName => {
+            const btn = document.createElement('button');
+            btn.className = 'tag-chip' + (tagName === activeTag ? ' active' : '');
+            btn.textContent = tagName;
+            btn.setAttribute('data-tag', tagName);
+            tagChipsContainer.appendChild(btn);
         });
     }
 
-    // Initialize Tags and Feed
-    initTags();
+    // Initialize Feed (tags are built from the first feed response)
     loadFeed(1);
 
     // Handle chip clicks
