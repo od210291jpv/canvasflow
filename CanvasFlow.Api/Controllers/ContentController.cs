@@ -321,21 +321,41 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
             try
+        {
+            CmsLoginResponseDto cmsUser;
+            try
             {
-                CmsLoginResponseDto cmsUser;
-                try
-                {
-                    cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
-
-                }
-                catch (HttpRequestException e)
-                {
-                    throw new HttpRequestException($"Failed to login to CMS API. {e}");
-                }
-
-                var myContent = await _contentService.GetContentByUserIdAsync(userId);
-                return Ok(myContent);
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
             }
+            catch (HttpRequestException e)
+            {
+                return BadRequest(new { error = $"Failed to login to CMS API: {e.Message}" });
+            }
+
+            var myContent = await _contentService.GetContentByUserIdAsync(userId);
+
+            // Resolve real image URLs from CMS for each content item
+            var cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 100);
+
+            // Build a lookup: cmsItemId -> cmsPath
+            var cmsPathById = cmsContent.Items
+                .ToDictionary(c => c.Id.ToString(), c => c.Path);
+
+            foreach (var item in myContent)
+            {
+                var parts = item.ImageUrl?.Split(':');
+                if (parts != null && parts.Length == 2)
+                {
+                    var cmsItemId = parts[1];
+                    if (cmsPathById.TryGetValue(cmsItemId, out var resolvedPath))
+                    {
+                        item.ImageUrl = resolvedPath;
+                    }
+                }
+            }
+
+            return Ok(myContent);
+        }
             catch (Exception ex)
             {
                 return BadRequest(new { error = ex.Message });

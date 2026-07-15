@@ -52,6 +52,7 @@ namespace CanvasFlow.Api.Services
             }
  
             return await query
+                .OrderByDescending(c => c.UploadDate)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

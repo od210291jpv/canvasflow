@@ -309,9 +309,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const response = await fetch(`${baseUrl}/api/Content/upload`, {
                 method: 'POST',
                 headers: {
-                    // 2. ДОДАЄМО ТОКЕН СЮДИ
                     'Authorization': `Bearer ${token}`
-                    // ВАЖЛИВО: Не додавайте 'Content-Type': 'multipart/form-data'! 
+                    // ВАЖЛИВО: Не додавайте 'Content-Type': 'multipart/form-data'!
                     // Браузер зробить це автоматично разом з потрібним boundary.
                 },
                 body: formData
@@ -319,15 +318,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const result = await response.json();
 
             if (response.ok) {
-                // Append immediately to UI
-                const historyContainer = document.getElementById('chat-history');
-                historyContainer.innerHTML += `<div class="msg-bubble msg-sent">${content}</div>`;
-                historyContainer.scrollTop = historyContainer.scrollHeight;
-                inputField.value = '';
-                loadInbox();
+                // Reset form and show success message
+                document.getElementById('add-publication-form').reset();
+                statusDiv.textContent = '✅ Публікацію успішно завантажено!';
+                statusDiv.style.color = 'var(--accent-color, #4ade80)';
+
+                // Refresh the feed so the new post appears immediately
+                loadFeed(1);
+                // Refresh the publications list if it is visible
+                loadMyPublications();
+            } else {
+                statusDiv.textContent = `❌ Помилка: ${result.error || 'Невідома помилка.'}`;
+                statusDiv.style.color = 'var(--error-color, #f87171)';
             }
         } catch (error) {
-            console.error('Error sending message:', error);
+            console.error('Error uploading content:', error);
+            statusDiv.textContent = '❌ Помилка мережі. Спробуйте ще раз.';
+            statusDiv.style.color = 'var(--error-color, #f87171)';
         }
     });
 
