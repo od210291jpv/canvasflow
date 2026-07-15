@@ -288,6 +288,20 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
 
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
+            var targetContent = await _contentService.GetContentByIdAsync(contentId);
+
+            await _cmsApiClient.DeleteContentAsync(int.Parse($"{targetContent.ImageUrl}".Split(":").Last()));
             var success = await _contentService.DeleteContentAsync(userId, contentId);
 
             if (success)
@@ -308,6 +322,17 @@ namespace CanvasFlow.Api.Controllers
             }
             try
             {
+                CmsLoginResponseDto cmsUser;
+                try
+                {
+                    cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+                }
+                catch (HttpRequestException e)
+                {
+                    throw new HttpRequestException($"Failed to login to CMS API. {e}");
+                }
+
                 var myContent = await _contentService.GetContentByUserIdAsync(userId);
                 return Ok(myContent);
             }
