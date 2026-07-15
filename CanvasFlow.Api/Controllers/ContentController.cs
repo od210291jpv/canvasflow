@@ -79,18 +79,43 @@ namespace CanvasFlow.Api.Controllers
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
             ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, page, 10000);
 
-            //content id: user id
-            Dictionary<string, string> ids = feed.Select(c => c.ImageUrl).ToDictionary(c => c.Split(":").Last(), c => c.Split(":").First());
-            Dictionary<string, string> targetUrls = cmsContent.Items.Where(c => ids.ContainsKey(c.Id.ToString())).ToDictionary(c => c.Id.ToString(), c => c.Path);
+            // Map stored imageUrl tokens "userId:cmsId" → cmsId key, userId value
+            var ids = feed
+                .Where(c => c.ImageUrl != null && c.ImageUrl.Contains(':'))
+                .Select(c => c.ImageUrl!)
+                .ToDictionary(
+                    url => url.Split(':').Last(),   // key   = cmsId
+                    url => url.Split(':').First());  // value = userId
 
-            foreach (var cmsitem in cmsContent.Items) 
+            // Build lookup of active CMS items only (Enabled=true, not deleted)
+            var activeCmsItems = cmsContent.Items
+                .Where(c => c.Enabled && !c.IsDeleted)
+                .ToDictionary(c => c.Id.ToString());
+
+            // Resolve URLs for active items; collect CMS IDs that map to feed entries
+            var resolvedCmsIds = new HashSet<string>();
+            foreach (var cmsItem in activeCmsItems.Values)
             {
-                _ = ids.TryGetValue(cmsitem.Id.ToString(), out var userId) ? userId : null;
-                if (userId is not null) 
+                if (ids.TryGetValue(cmsItem.Id.ToString(), out var userId) && userId is not null)
                 {
-                    feed.SingleOrDefault(i => i.ImageUrl == $"{userId}:{cmsitem.Id}").ImageUrl = cmsitem.Path;
+                    var feedItem = feed.SingleOrDefault(i => i.ImageUrl == $"{userId}:{cmsItem.Id}");
+                    if (feedItem is not null)
+                    {
+                        feedItem.ImageUrl = cmsItem.Path;
+                        resolvedCmsIds.Add(cmsItem.Id.ToString());
+                    }
                 }
             }
+
+            // Remove feed entries whose CMS content is disabled/deleted or simply not found
+            feed.RemoveAll(item =>
+            {
+                var parts = item.ImageUrl?.Split(':');
+                // If the imageUrl still looks like "userId:cmsId" it was never resolved → remove it
+                if (parts is { Length: 2 } && int.TryParse(parts[1], out _))
+                    return true;
+                return false;
+            });
 
             return feed;
         }
