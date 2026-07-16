@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const feedContent = document.getElementById('feed-content');
-    const paginationControls = document.getElementById('pagination-controls');
     const feedTitle = document.getElementById('feed-title');
     const baseUrl = 'http://192.168.88.68:5000';
    
@@ -460,27 +459,50 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === modal) closeModal(); // Close if clicked outside the image
     });
 
-    // Feed Loading Logic
-    async function loadFeed(page = 1, tags = []) {
-        // Show skeleton loader while fetching
-        feedContent.innerHTML = `
-            <div class="skeleton-feed">
-                ${[1,2,3].map(() => `
-                <div class="skeleton-item">
-                    <div class="skeleton-header">
-                        <div class="skeleton-avatar"></div>
-                        <div class="skeleton-meta">
-                            <div class="skeleton-line w-60"></div>
-                            <div class="skeleton-line w-40"></div>
+    // Feed Loading Logic for Infinite Scroll
+    let feedPage = 1;
+    let feedTotalPages = 1;
+    let feedLoading = false;
+    let currentTags = [];
+    let sentinel = null;
+
+    async function loadFeed(page = 1, tags = [], append = false) {
+        if (feedLoading) return;
+        feedLoading = true;
+        feedPage = page;
+        currentTags = tags;
+
+        if (!append) {
+            // Show skeleton loader on fresh load
+            feedContent.innerHTML = `
+                <div class="skeleton-feed">
+                    ${[1,2,3].map(() => `
+                    <div class="skeleton-item">
+                        <div class="skeleton-header">
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-meta">
+                                <div class="skeleton-line w-60"></div>
+                                <div class="skeleton-line w-40"></div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="skeleton-image"></div>
-                    <div class="skeleton-line w-80"></div>
-                    <div class="skeleton-line w-full" style="margin-top:8px;"></div>
-                </div>`).join('')}
-            </div>`;
-        paginationControls.innerHTML = '';
-        feedTitle.textContent = 'Community Feed';
+                        <div class="skeleton-image"></div>
+                        <div class="skeleton-line w-80"></div>
+                        <div class="skeleton-line w-full" style="margin-top:8px;"></div>
+                    </div>`).join('')}
+                </div>`;
+            feedTitle.textContent = 'Community Feed';
+        } else {
+            // Show inline loader at the bottom of the feed when appending
+            let loader = document.getElementById('feed-infinite-loader');
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = 'feed-infinite-loader';
+                loader.className = 'skeleton-line w-40';
+                loader.style.margin = '20px auto';
+                loader.style.height = '8px';
+                feedContent.appendChild(loader);
+            }
+        }
 
         let tagQuery = '';
         if (tags.length > 0) {
@@ -488,31 +510,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const response = await fetch(`${baseUrl}/api/Content/feed?page=${page}&limit=20${tagQuery}`);
+            const response = await fetch(`${baseUrl}/api/Content/feed?page=${page}&limit=10${tagQuery}`);
             const data = await response.json();
 
+            // Remove the inline loader if present
+            const loader = document.getElementById('feed-infinite-loader');
+            if (loader) loader.remove();
+
             if (response.ok) {
-                const items = data.items ?? data; // fallback for safety
-                displayFeed(items);
-                renderPagination(data.totalPages || 1, page);
-                // Rebuild tag chips from what is actually in the current feed page
-                renderTagsFromFeed(items, tags.length > 0 ? tags[0] : '');
+                const items = data.items ?? data;
+                feedTotalPages = data.totalPages || 1;
+
+                displayFeed(items, append);
+                
+                // Rebuild tag chips only on first load
+                if (!append) {
+                    renderTagsFromFeed(items, tags.length > 0 ? tags[0] : '');
+                }
+
+                setupScrollObserver();
             } else {
-                feedContent.innerHTML = `<div class="feed-error-state">⚠️ Error loading feed: ${data.error || 'Unknown error.'}</div>`;
+                if (!append) {
+                    feedContent.innerHTML = `<div class="feed-error-state">⚠️ Error loading feed: ${data.error || 'Unknown error.'}</div>`;
+                }
             }
         } catch (error) {
             console.error("Fetch error:", error);
-            feedContent.innerHTML = '<div class="feed-error-state">⚠️ Could not connect to the feed service. Please try again later.</div>';
+            const loader = document.getElementById('feed-infinite-loader');
+            if (loader) loader.remove();
+            if (!append) {
+                feedContent.innerHTML = '<div class="feed-error-state">⚠️ Could not connect to the feed service. Please try again later.</div>';
+            }
+        } finally {
+            feedLoading = false;
         }
     }
 
-    function displayFeed(content) {
+    function displayFeed(content, append = false) {
         if (!content || content.length === 0) {
-            feedContent.innerHTML = `
-                <div class="feed-empty-state">
-                    <div class="feed-empty-icon">🌌</div>
-                    <p>No posts here yet. Be the first to share something!</p>
-                </div>`;
+            if (!append) {
+                feedContent.innerHTML = `
+                    <div class="feed-empty-state">
+                        <div class="feed-empty-icon">🌌</div>
+                        <p>No posts here yet. Be the first to share something!</p>
+                    </div>`;
+            }
             return;
         }
 
@@ -580,36 +622,42 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>`;
         });
-        feedContent.innerHTML = html;
+
+        if (append) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            while (tempDiv.firstChild) {
+                feedContent.appendChild(tempDiv.firstChild);
+            }
+        } else {
+            feedContent.innerHTML = html;
+        }
     }
 
-    function renderPagination(totalPages, currentPage) {
-        if (totalPages <= 1) return;
-
-        let paginationHtml = '';
-        const maxPagesToShow = 5;
-        const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-        const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-        paginationHtml += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>&#8592; Prev</button>`;
-
-        if (startPage > 1) {
-            paginationHtml += `<button class="pagination-btn" data-page="1">1</button>`;
-            if (startPage > 2) paginationHtml += `<span style="color:rgba(255,255,255,0.3); align-self:center;">…</span>`;
+    function setupScrollObserver() {
+        // Remove existing sentinel if present
+        if (sentinel) {
+            sentinel.remove();
         }
 
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}" ${i === currentPage ? 'disabled' : ''}>${i}</button>`;
-        }
+        // Only create observer if there are more pages left
+        if (feedPage >= feedTotalPages) return;
 
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationHtml += `<span style="color:rgba(255,255,255,0.3); align-self:center;">…</span>`;
-            paginationHtml += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
-        }
+        sentinel = document.createElement('div');
+        sentinel.id = 'feed-scroll-sentinel';
+        sentinel.style.height = '10px';
+        feedContent.appendChild(sentinel);
 
-        paginationHtml += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next &#8594;</button>`;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !feedLoading) {
+                observer.disconnect();
+                loadFeed(feedPage + 1, currentTags, true);
+            }
+        }, {
+            rootMargin: '200px'
+        });
 
-        paginationControls.innerHTML = paginationHtml;
+        observer.observe(sentinel);
     }
 
     // Tag Filter Logic — chips derived from the current feed response
@@ -672,22 +720,6 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btn-logout').addEventListener('click', () => {
         localStorage.removeItem('token');
         window.location.href = '/Auth';
-    });
-
-    paginationControls.addEventListener('click', (e) => {
-        if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-            const page = e.target.dataset.page;
-            const currentActive = document.querySelector('.pagination-btn.active');
-            const currentPage = currentActive ? parseInt(currentActive.dataset.page) : 1;
-
-            if (page === 'prev') {
-                loadFeed(currentPage - 1);
-            } else if (page === 'next') {
-                loadFeed(currentPage + 1);
-            } else {
-                loadFeed(parseInt(page));
-            }
-        }
     });
 
     // Edit Profile View/Edit toggles and saving
