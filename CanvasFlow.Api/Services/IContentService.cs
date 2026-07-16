@@ -1,8 +1,5 @@
 using CanvasFlow.Db.Models;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
- 
+
 namespace CanvasFlow.Api.Services
 {
     public interface IContentService
@@ -17,6 +14,8 @@ namespace CanvasFlow.Api.Services
         Task<bool> DeleteContentAsync(int adminUserId, int contentId);
  
         Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null);
+ 
+        Task<int> GetFeedCountAsync(List<string> tags = null);
  
         Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags);
  

@@ -4,21 +4,25 @@ document.addEventListener('click', async (event) => {
     const button = event.target.closest('.btn-like');
     if (!button) return;
 
-    const baseUrl = 'http://192.168.88.68:5000'
+    const baseUrl = 'http://192.168.88.68:5000';
 
     const contentId = button.dataset.contentId;
-    let isLiked = button.classList.contains('liked');
+    const isLiked = button.classList.contains('liked');
     const token = localStorage.getItem('token');
 
-    // Optimistic UI Update
+    // --- Optimistic UI update ---
+    const textSpan  = button.querySelector('.like-text');
+    const countSpan = button.querySelector('.like-count');
+    const currentCount = countSpan ? parseInt(countSpan.textContent, 10) || 0 : 0;
+
     if (!isLiked) {
         button.classList.add('liked');
-        const textSpan = button.querySelector('.like-text');
-        if (textSpan) textSpan.textContent = 'Liked';
+        if (textSpan)  textSpan.textContent  = 'Liked';
+        if (countSpan) countSpan.textContent  = currentCount + 1;
     } else {
         button.classList.remove('liked');
-        const textSpan = button.querySelector('.like-text');
-        if (textSpan) textSpan.textContent = 'Like';
+        if (textSpan)  textSpan.textContent  = 'Like';
+        if (countSpan) countSpan.textContent  = Math.max(0, currentCount - 1);
     }
 
     try {
@@ -39,8 +43,8 @@ document.addEventListener('click', async (event) => {
         console.error('Like error:', error);
         // Rollback UI on failure
         button.classList.toggle('liked');
-        const textSpan = button.querySelector('.like-text');
-        if (textSpan) textSpan.textContent = isLiked ? 'Liked' : 'Like';
+        if (textSpan)  textSpan.textContent  = isLiked ? 'Liked' : 'Like';
+        if (countSpan) countSpan.textContent  = currentCount; // restore original count
         alert(`Error: ${error.message}`);
     }
 });

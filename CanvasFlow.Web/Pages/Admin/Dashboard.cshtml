@@ -5,8 +5,11 @@
     ViewData["Title"] = "Admin Dashboard";
 }
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="~/css/profile.css" asp-append-version="true" />
-<link rel="stylesheet" href="~/css/admin-common.css"asp-append-version="true" />
+<link rel="stylesheet" href="~/css/admin-common.css" asp-append-version="true"/>
 
 <div class="admin-dashboard-container">
     <!-- Top Navigation Bar -->
@@ -46,6 +49,19 @@
         <div class="admin-content-area">
             <!-- Users Moderation Section -->
             <div id="section-users" class="admin-tab-section active">
+
+                <!-- Stats bar — populated by JS -->
+                <div id="user-stats-bar" class="user-stats-bar"></div>
+
+                <!-- Search -->
+                <div class="user-toolbar">
+                    <div class="user-search-wrap">
+                        <span class="user-search-icon">🔍</span>
+                        <input type="text" id="user-search" class="user-search-input"
+                               placeholder="Search by name, email or ID…" autocomplete="off" />
+                    </div>
+                </div>
+
                 <div class="glass-table-wrapper">
                     <table class="admin-table" id="usersTable">
                         <thead>
@@ -53,6 +69,7 @@
                                 <th>ID</th>
                                 <th>User</th>
                                 <th>Status</th>
+                                <th>Role</th>
                                 <th class="text-right">Actions</th>
                             </tr>
                         </thead>

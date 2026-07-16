@@ -1,11 +1,15 @@
-using CanvasFlow.Db.Models;
+using CanvasFlow.Api.DTO;
+using CanvasFlow.Api.Hubs;
 using CanvasFlow.Api.Services;
+using CanvasFlow.Api.Services.CmsApi;
+using CanvasFlow.Api.Services.CmsApi.Models;
+using CanvasFlow.Db.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using CanvasFlow.Api.Hubs;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
+using System.Diagnostics;
+using System.Security.Claims;
 
 namespace CanvasFlow.Api.Controllers
 {
@@ -15,22 +19,30 @@ namespace CanvasFlow.Api.Controllers
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IExternalStorageService _externalStorageService;
         private readonly IHubContext<NotificationHub> _notificationHub;
+        private readonly CmsApiClient _cmsApiClient;
+        private const string CmsUsername = "CanvasFlow";
+        private const string CmsPassword = "Password";
 
-        public ContentController(IContentService contentService, IHttpClientFactory httpClientFactory, IHubContext<NotificationHub> notificationHub)
+        public ContentController(
+            IContentService contentService,
+            IExternalStorageService externalStorageService,
+            IHubContext<NotificationHub> notificationHub)
         {
             _contentService = contentService;
-            _httpClientFactory = httpClientFactory;
+            _externalStorageService = externalStorageService;
             _notificationHub = notificationHub;
+            _cmsApiClient = new CmsApiClient(new HttpClient(), "http://192.168.88.68:8085"); // Replace with actual CMS API base URL
+
         }
 
         [AllowAnonymous]
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed(
-            [FromQuery] int page = 1, 
-            [FromQuery] int limit = 20, 
-            [FromQuery] string tags = null)
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? tags = null)
         {
             List<string>? tagList = null;
             if (!string.IsNullOrEmpty(tags))
@@ -38,20 +50,129 @@ namespace CanvasFlow.Api.Controllers
                 tagList = tags.Split(',').ToList();
             }
 
-            // Pass the parsed tag list to the service
+            List<Content> feed;
+            int totalCount;
+            try
+            {
+                // Run both queries concurrently
+                var feedTask  = MapContent(page, limit, tagList);
+                var countTask = _contentService.GetFeedCountAsync(tagList);
+                await Task.WhenAll(feedTask, countTask);
+
+                feed       = feedTask.Result;
+                totalCount = countTask.Result;
+            }
+            catch (HttpRequestException ex)
+            {
+                return Unauthorized($"Failed to fetch content feed: {ex.Message}");
+            }
+
+            var totalPages = (int)Math.Ceiling(totalCount / (double)limit);
+            totalPages = Math.Max(1, totalPages);
+
+            return Ok(new
+            {
+                Items      = feed,
+                Page       = page,
+                Limit      = limit,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                HasNext    = page < totalPages
+            });
+        }
+
+        private async Task<List<Content>> MapContent(int page, int limit, List<string>? tagList)
+        {
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
-            return Ok(feed);
+            // Always fetch from CMS page 1 with a large limit to get ALL content at once for URL resolution.
+            // Using the feed page number here caused CMS to return empty on page 2+ (since CMS has its own pagination).
+            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 10000);
+
+            // Map stored imageUrl tokens "userId:cmsId" → cmsId key, userId value
+            var ids = feed
+                .Where(c => c.ImageUrl != null && c.ImageUrl.Contains(':'))
+                .Select(c => c.ImageUrl!)
+                .ToDictionary(
+                    url => url.Split(':').Last(),   // key   = cmsId
+                    url => url.Split(':').First());  // value = userId
+
+            // Build lookup of active CMS items only (Enabled=true, not deleted)
+            var activeCmsItems = cmsContent.Items
+                .Where(c => c.Enabled && !c.IsDeleted)
+                .ToDictionary(c => c.Id.ToString());
+
+            // Resolve URLs for active items; collect CMS IDs that map to feed entries
+            var resolvedCmsIds = new HashSet<string>();
+            foreach (var cmsItem in activeCmsItems.Values)
+            {
+                if (ids.TryGetValue(cmsItem.Id.ToString(), out var userId) && userId is not null)
+                {
+                    var feedItem = feed.SingleOrDefault(i => i.ImageUrl == $"{userId}:{cmsItem.Id}");
+                    if (feedItem is not null)
+                    {
+                        feedItem.ImageUrl = cmsItem.Path;
+                        resolvedCmsIds.Add(cmsItem.Id.ToString());
+                    }
+                }
+            }
+
+            // Remove feed entries whose CMS image is disabled/deleted.
+            // Only remove items whose ImageUrl is still in the raw "userId:cmsId" token format
+            // (meaning CMS resolution failed). Items with no image (null/empty) are kept.
+            feed.RemoveAll(item =>
+            {
+                if (string.IsNullOrEmpty(item.ImageUrl)) return false; // no image — keep
+                var parts = item.ImageUrl.Split(':');
+                // Still an unresolved token: two numeric parts separated by colon
+                return parts.Length == 2
+                    && int.TryParse(parts[0], out _)
+                    && int.TryParse(parts[1], out _);
+            });
+
+            return feed;
         }
 
         [HttpGet("get/{contentId}")]
         public async Task<IActionResult> GetContentById(int contentId)
         {
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
             var content = await _contentService.GetContentByIdAsync(contentId);
 
             if (content == null)
             {
                 return NotFound(new { error = "Content not found." });
             }
+
+            ContentModel cmsContent = await _cmsApiClient.GetContentByContentIdAsync(int.Parse(content.ImageUrl.Split(":").Last()));
+
+            if (cmsContent == null)
+            {
+                return NotFound(new { error = "Content not found in CMS" });
+            }
+
+            content.ImageUrl = cmsContent.Path;
+
             return Ok(content);
         }
 
@@ -64,52 +185,39 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
 
+            if (model.File == null)
+            {
+                return BadRequest(new { error = "File is missing." });
+            }
+
             try
             {
-                using var memoryStream = new MemoryStream();
-                await model.File.CopyToAsync(memoryStream);
-                var fileBytes = memoryStream.ToArray();
-
-                var safeExt = Path.GetExtension(model.File.FileName).ToLowerInvariant();
-                var safeFileName = $"img_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{safeExt}";
-
-                using var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.ConnectionClose = true;
-                client.DefaultRequestHeaders.ExpectContinue = false;
-
-                using var multipartFormContent = new MultipartFormDataContent();
-                var boundary = multipartFormContent.Headers.ContentType?.Parameters.FirstOrDefault(p => p.Name == "boundary");
-                if (boundary != null && boundary.Value != null)
+                CmsLoginResponseDto cmsUser;
+                try
                 {
-                    boundary.Value = boundary.Value.Replace("\"", "");
+                    cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+                }
+                catch (HttpRequestException e) 
+                {
+                    return BadRequest(new { error = $"Failed to login to CMS API: {e.Message}" });
                 }
 
-                using var fileContent = new ByteArrayContent(fileBytes);
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(model.File.ContentType);
-                fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+                using var fileStream = model.File.OpenReadStream();
+                var fileContent = new StreamContent(fileStream);
+
+                ContentModel cmsContentSubmitted = await _cmsApiClient.CreateContentAsync(fileContent, model.File.FileName, cmsUser.User.Id, true, model.Description, true, false );
+                
+                if(cmsContentSubmitted is null)
                 {
-                    Name = "\"image\"",          
-                    FileName = $"\"{safeFileName}\"" 
-                };
-
-                multipartFormContent.Add(fileContent);
-                await multipartFormContent.LoadIntoBufferAsync();
-
-                var espResponse = await client.PostAsync("http://192.168.88.98/api/upload", multipartFormContent);
-
-                if (!espResponse.IsSuccessStatusCode)
-                {
-                    var espError = await espResponse.Content.ReadAsStringAsync();
-                    return BadRequest(new { error = $"ESP32 Upload Failed: {espError}" });
+                    return BadRequest(new { error = "Failed to create content in CMS." });
                 }
-
-                var generatedImageUrl = $"/api/content/proxy-image/{safeFileName}";
 
                 var newContent = await _contentService.UploadContentAsync(
                     userId,
                     model.Title,
                     model.Description,
-                    generatedImageUrl,
+                    $"{userId}:{cmsContentSubmitted.Id}",
                     model.Tags);
 
                 return CreatedAtAction(nameof(GetContentById), new { contentId = newContent.Id }, newContent);
@@ -126,21 +234,12 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                using var client = _httpClientFactory.CreateClient();
+                var (stream, contentType) = await _externalStorageService.GetImageStreamAsync(fileName);
 
-                var espUrl = $"http://192.168.88.98/images/{fileName}";
-                var response = await client.GetAsync(espUrl);
-
-                if (!response.IsSuccessStatusCode)
+                if (stream == null)
                 {
                     return NotFound(new { error = "Image not found on ESP32." });
                 }
-
-                var stream = await response.Content.ReadAsStreamAsync();
-
-                var contentType = fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                    ? "image/png"
-                    : "image/jpeg";
 
                 return File(stream, contentType);
             }
@@ -156,15 +255,7 @@ namespace CanvasFlow.Api.Controllers
         {
             try
             {
-                using var client = _httpClientFactory.CreateClient();
-                var response = await client.GetAsync("http://192.168.88.98/api/get_images");
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return StatusCode((int)response.StatusCode, new { error = "Failed to fetch images from ESP32" });
-                }
-
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await _externalStorageService.GetExternalImagesJsonAsync();
                 return Content(content, "application/json");
             }
             catch (Exception ex)
@@ -188,18 +279,17 @@ namespace CanvasFlow.Api.Controllers
                 return NotFound(new { error = "Content not found." });
             }
 
-            // Rule: UserId != AuthorId
             if (content.UserId == userId)
             {
                 return BadRequest(new { error = "You cannot like your own content." });
             }
 
             var success = await _contentService.LikeContentAsync(contentId, userId);
-            
+
             if (success)
             {
-                // Send real-time notification to the owner of the content
-                await _notificationHub.Clients.User(content.UserId.ToString()).SendAsync("ReceiveNotification", new {
+                await _notificationHub.Clients.User(content.UserId.ToString()).SendAsync("ReceiveNotification", new
+                {
                     Title = "New Like",
                     Content = $"Someone liked your content: {content.Title}"
                 });
@@ -217,13 +307,13 @@ namespace CanvasFlow.Api.Controllers
             {
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
-            
+
             try
             {
                 var updatedContent = await _contentService.UpdateContentAsync(
-                    contentId, 
-                    model.Title, 
-                    model.Description, 
+                    contentId,
+                    model.Title,
+                    model.Description,
                     model.Tags);
                 return Ok(updatedContent);
             }
@@ -245,9 +335,23 @@ namespace CanvasFlow.Api.Controllers
             {
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
-            
+
+            CmsLoginResponseDto cmsUser;
+            try
+            {
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
+
+            }
+            catch (HttpRequestException e)
+            {
+                throw new HttpRequestException($"Failed to login to CMS API. {e}");
+            }
+
+            var targetContent = await _contentService.GetContentByIdAsync(contentId);
+
+            await _cmsApiClient.DeleteContentAsync(int.Parse($"{targetContent.ImageUrl}".Split(":").Last()));
             var success = await _contentService.DeleteContentAsync(userId, contentId);
-            
+
             if (success)
             {
                 return NoContent();
@@ -265,10 +369,41 @@ namespace CanvasFlow.Api.Controllers
                 return Unauthorized(new { error = "User ID missing or invalid." });
             }
             try
+        {
+            CmsLoginResponseDto cmsUser;
+            try
             {
-                var myContent = await _contentService.GetContentByUserIdAsync(userId);
-                return Ok(myContent);
+                cmsUser = await _cmsApiClient.LoginAsync(CmsUsername, CmsPassword);
             }
+            catch (HttpRequestException e)
+            {
+                return BadRequest(new { error = $"Failed to login to CMS API: {e.Message}" });
+            }
+
+            var myContent = await _contentService.GetContentByUserIdAsync(userId);
+
+            // Resolve real image URLs from CMS for each content item
+            var cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 10000);
+
+            // Build a lookup: cmsItemId -> cmsPath
+            var cmsPathById = cmsContent.Items
+                .ToDictionary(c => c.Id.ToString(), c => c.Path);
+
+            foreach (var item in myContent)
+            {
+                var parts = item.ImageUrl?.Split(':');
+                if (parts != null && parts.Length == 2)
+                {
+                    var cmsItemId = parts[1];
+                    if (cmsPathById.TryGetValue(cmsItemId, out var resolvedPath))
+                    {
+                        item.ImageUrl = resolvedPath;
+                    }
+                }
+            }
+
+            return Ok(myContent);
+        }
             catch (Exception ex)
             {
                 return BadRequest(new { error = ex.Message });
@@ -282,21 +417,5 @@ namespace CanvasFlow.Api.Controllers
             var tags = await _contentService.GetAllTagsAsync();
             return Ok(tags);
         }
-    }
- 
-    public class UploadContentDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public IFormFile? File { get; set; }
-        public List<string> Tags { get; set; } = new List<string>();
-    }
- 
-    public class UpdateContentDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string ImageUrl { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = new List<string>();
     }
 }
