@@ -68,6 +68,7 @@ namespace CanvasFlow.Api.Controllers
             }
 
             var totalPages = (int)Math.Ceiling(totalCount / (double)limit);
+            totalPages = Math.Max(1, totalPages);
 
             return Ok(new
             {
@@ -75,7 +76,8 @@ namespace CanvasFlow.Api.Controllers
                 Page       = page,
                 Limit      = limit,
                 TotalCount = totalCount,
-                TotalPages = Math.Max(1, totalPages)
+                TotalPages = totalPages,
+                HasNext    = page < totalPages
             });
         }
 
@@ -93,7 +95,9 @@ namespace CanvasFlow.Api.Controllers
             }
 
             List<Content> feed = await _contentService.GetFeedAsync(page, limit, tagList);
-            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, page, 10000);
+            // Always fetch from CMS page 1 with a large limit to get ALL content at once for URL resolution.
+            // Using the feed page number here caused CMS to return empty on page 2+ (since CMS has its own pagination).
+            ContentObjectDtoPagedResult cmsContent = await _cmsApiClient.GetUserContentAsync(cmsUser.User.Id, 1, 10000);
 
             // Map stored imageUrl tokens "userId:cmsId" → cmsId key, userId value
             var ids = feed
@@ -123,14 +127,17 @@ namespace CanvasFlow.Api.Controllers
                 }
             }
 
-            // Remove feed entries whose CMS content is disabled/deleted or simply not found
+            // Remove feed entries whose CMS image is disabled/deleted.
+            // Only remove items whose ImageUrl is still in the raw "userId:cmsId" token format
+            // (meaning CMS resolution failed). Items with no image (null/empty) are kept.
             feed.RemoveAll(item =>
             {
-                var parts = item.ImageUrl?.Split(':');
-                // If the imageUrl still looks like "userId:cmsId" it was never resolved → remove it
-                if (parts is { Length: 2 } && int.TryParse(parts[1], out _))
-                    return true;
-                return false;
+                if (string.IsNullOrEmpty(item.ImageUrl)) return false; // no image — keep
+                var parts = item.ImageUrl.Split(':');
+                // Still an unresolved token: two numeric parts separated by colon
+                return parts.Length == 2
+                    && int.TryParse(parts[0], out _)
+                    && int.TryParse(parts[1], out _);
             });
 
             return feed;

@@ -462,6 +462,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Feed Loading Logic for Infinite Scroll
     let feedPage = 1;
     let feedTotalPages = 1;
+    let feedHasNext = false;
     let feedLoading = false;
     let currentTags = [];
     let sentinel = null;
@@ -520,9 +521,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (response.ok) {
                 const items = data.items ?? data;
                 feedTotalPages = data.totalPages || 1;
+                feedHasNext    = data.hasNext === true;
 
                 displayFeed(items, append);
-                
+
                 // Rebuild tag chips only on first load
                 if (!append) {
                     renderTagsFromFeed(items, tags.length > 0 ? tags[0] : '');
@@ -635,13 +637,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setupScrollObserver() {
-        // Remove existing sentinel if present
+        // Tear down any previous sentinel
         if (sentinel) {
             sentinel.remove();
+            sentinel = null;
         }
 
-        // Only create observer if there are more pages left
-        if (feedPage >= feedTotalPages) return;
+        // Stop if there are no more pages
+        if (!feedHasNext) return;
 
         sentinel = document.createElement('div');
         sentinel.id = 'feed-scroll-sentinel';
@@ -651,10 +654,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && !feedLoading) {
                 observer.disconnect();
+                sentinel = null;
                 loadFeed(feedPage + 1, currentTags, true);
             }
         }, {
-            rootMargin: '200px'
+            rootMargin: '300px'   // trigger 300px before sentinel enters viewport
         });
 
         observer.observe(sentinel);
