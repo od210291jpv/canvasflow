@@ -492,10 +492,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
 
             if (response.ok) {
-                displayFeed(data);
+                const items = data.items ?? data; // fallback for safety
+                displayFeed(items);
                 renderPagination(data.totalPages || 1, page);
                 // Rebuild tag chips from what is actually in the current feed page
-                renderTagsFromFeed(data, tags.length > 0 ? tags[0] : '');
+                renderTagsFromFeed(items, tags.length > 0 ? tags[0] : '');
             } else {
                 feedContent.innerHTML = `<div class="feed-error-state">⚠️ Error loading feed: ${data.error || 'Unknown error.'}</div>`;
             }

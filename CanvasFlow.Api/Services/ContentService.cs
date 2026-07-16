@@ -58,6 +58,32 @@ namespace CanvasFlow.Api.Services
                 .ToListAsync();
         }
  
+        public virtual async Task<int> GetFeedCountAsync(List<string> tags = null)
+        {
+            IQueryable<Content> query = Context.Contents
+                .Where(c => !c.IsDeleted && c.IsPublished);
+ 
+            if (tags != null && tags.Any())
+            {
+                var tagIds = await Context.Tags
+                    .Where(t => tags.Contains(t.Name))
+                    .Select(t => t.Id)
+                    .ToListAsync();
+ 
+                if (tagIds.Any())
+                {
+                    query = query.Where(c => c.Tags.Any(t => tagIds.Contains(t.Id)) &&
+                                             c.Tags.Count(t => tagIds.Contains(t.Id)) == tagIds.Count);
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+ 
+            return await query.CountAsync();
+        }
+ 
         public virtual async Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags)
         {
             var normalizedTags = NormalizeTags(tags);

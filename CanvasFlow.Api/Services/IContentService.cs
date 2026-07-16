@@ -15,6 +15,8 @@ namespace CanvasFlow.Api.Services
  
         Task<List<Content>> GetFeedAsync(int pageNumber, int pageSize, List<string> tags = null);
  
+        Task<int> GetFeedCountAsync(List<string> tags = null);
+ 
         Task<Content> UploadContentAsync(int userId, string title, string description, string imageUrl, List<string> tags);
  
         Task<bool> LikeContentAsync(int contentId, int userId);

@@ -51,16 +51,32 @@ namespace CanvasFlow.Api.Controllers
             }
 
             List<Content> feed;
+            int totalCount;
             try
             {
-                feed = await MapContent(page, limit, tagList);
+                // Run both queries concurrently
+                var feedTask  = MapContent(page, limit, tagList);
+                var countTask = _contentService.GetFeedCountAsync(tagList);
+                await Task.WhenAll(feedTask, countTask);
+
+                feed       = feedTask.Result;
+                totalCount = countTask.Result;
             }
-            catch (HttpRequestException ex) 
+            catch (HttpRequestException ex)
             {
                 return Unauthorized($"Failed to fetch content feed: {ex.Message}");
             }
 
-            return Ok(feed);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)limit);
+
+            return Ok(new
+            {
+                Items      = feed,
+                Page       = page,
+                Limit      = limit,
+                TotalCount = totalCount,
+                TotalPages = Math.Max(1, totalPages)
+            });
         }
 
         private async Task<List<Content>> MapContent(int page, int limit, List<string>? tagList)
